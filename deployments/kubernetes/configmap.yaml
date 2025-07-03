@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: golang-service-config
+  namespace: golang-service
+data:
+  ENVIRONMENT: "production"
+  PORT: "8080"
+  DATABASE_URL: "postgres://postgres:password@postgres-service:5432/golang_service?sslmode=disable"
