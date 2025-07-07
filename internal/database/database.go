@@ -17,6 +17,7 @@ func Initialize(databaseURL string) (*gorm.DB, error) {
 	// Auto migrate the schema
 	err = db.AutoMigrate(
 		&models.User{},
+		&models.VM{},
 		// Add other models here as you create them
 	)
 	if err != nil {
