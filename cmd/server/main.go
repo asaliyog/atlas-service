@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
 
 	"golang-service/internal/config"
@@ -13,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"github.com/swaggo/files"
+	swaggerFiles "github.com/swaggo/files"
 )
 
 // @title Golang Service API
@@ -49,8 +48,8 @@ func main() {
 	// Add CORS middleware
 	router.Use(middleware.CORS())
 
-	// Health check endpoint (no auth required)
-	router.GET("/health", handlers.HealthCheck)
+	// Health check endpoint (no auth required, but with DB context)
+	router.GET("/health", handlers.DatabaseHealthMiddleware(db), handlers.HealthCheck)
 
 	// API routes with authentication
 	api := router.Group("/api/v1")
@@ -59,7 +58,7 @@ func main() {
 		// Initialize handlers
 		h := handlers.New(db)
 
-		// Example endpoints
+		// User management endpoints
 		api.GET("/users", h.GetUsers)
 		api.POST("/users", h.CreateUser)
 		api.GET("/users/:id", h.GetUser)
@@ -68,7 +67,7 @@ func main() {
 	}
 
 	// Swagger documentation
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(files.Handler))
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Start server
 	port := os.Getenv("PORT")
@@ -77,6 +76,9 @@ func main() {
 	}
 
 	log.Printf("Server starting on port %s", port)
+	log.Printf("Health check available at: http://localhost:%s/health", port)
+	log.Printf("Swagger documentation available at: http://localhost:%s/swagger/index.html", port)
+	
 	if err := router.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
