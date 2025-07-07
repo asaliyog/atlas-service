@@ -17,7 +17,9 @@ func Initialize(databaseURL string) (*gorm.DB, error) {
 	// Auto migrate the schema
 	err = db.AutoMigrate(
 		&models.User{},
-		&models.VM{},
+		&models.AWSEC2Instance{},
+		&models.AzureVMInstance{},
+		&models.GCPComputeInstance{},
 		// Add other models here as you create them
 	)
 	if err != nil {

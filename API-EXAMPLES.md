@@ -1,132 +1,178 @@
 # Cloud Inventory API Examples
 
-This document provides comprehensive examples of how to use the Cloud Inventory API endpoints.
-
 ## Authentication
 
-All API endpoints require authentication via Azure Entra ID. Include your bearer token in the Authorization header:
-
+### Local Development (Auth Bypassed)
 ```bash
-Authorization: Bearer YOUR_JWT_TOKEN
+# No authentication required for local development
+curl -X GET "http://localhost:8080/api/v1/vms"
 ```
 
-## Base URL
-
-```
-http://localhost:8080/api/v1
-```
-
-## Endpoints
-
-### GET /vms
-
-Retrieve a paginated list of virtual machines with optional filtering and sorting.
-
-#### Basic Usage
-
+### Production (Azure Entra ID)
 ```bash
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms"
+# Get a token using client credentials flow
+TOKEN=$(curl -X POST "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials&client_id={client-id}&client_secret={client-secret}&scope=https://graph.microsoft.com/.default" \
+  | jq -r '.access_token')
+
+# Use the token in API requests
+curl -X GET "http://localhost:8080/api/v1/vms" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-#### Pagination
+## Basic VM Operations
 
+### Get All VMs
 ```bash
-# Get page 2 with 10 items per page
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?page=2&pageSize=10"
+curl -X GET "http://localhost:8080/api/v1/vms"
 ```
 
-#### Sorting
-
+### Get VMs with Pagination
 ```bash
-# Sort by name in ascending order
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?sortBy=name&sortOrder=asc"
-
-# Sort by creation date in descending order
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?sortBy=createdAt&sortOrder=desc"
-
-# Sort by cloud-specific field
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?sortBy=cloudSpecificDetails.vpcId&sortOrder=asc"
+curl -X GET "http://localhost:8080/api/v1/vms?page=1&pageSize=20"
 ```
 
-#### Filtering
-
-##### Single Filter Examples
-
+### Sort VMs by Creation Date (Descending)
 ```bash
-# Filter by cloud type
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"}]"
-
-# Filter by status
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"running\"}]"
-
-# Filter by name contains
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"name\",\"operator\":\"contains\",\"value\":\"web\"}]"
-
-# Filter by instance type
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"instanceType\",\"operator\":\"eq\",\"value\":\"t2.micro\"}]"
+curl -X GET "http://localhost:8080/api/v1/vms?sortBy=createdAt&sortOrder=desc"
 ```
 
-##### Multiple Filters
+## Advanced Filtering Examples
 
+### 1. Filter by Cloud Type
 ```bash
-# Filter by cloud type AND status
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"},{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"running\"}]"
+# Get only AWS instances
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"}]"
 
-# Filter by cloud account and location
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudAccountId\",\"operator\":\"eq\",\"value\":\"123456789012\"},{\"field\":\"location\",\"operator\":\"eq\",\"value\":\"us-east-1\"}]"
+# Get non-AWS instances
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"ne\",\"value\":\"aws\"}]"
 ```
 
-##### Cloud-Specific Field Filtering
-
+### 2. Filter by Status
 ```bash
-# Filter AWS VMs by VPC ID
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudSpecificDetails.vpcId\",\"operator\":\"eq\",\"value\":\"vpc-12345678\"}]"
+# Get only running VMs
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"running\"}]"
 
-# Filter GCP VMs by machine type
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudSpecificDetails.machineType\",\"operator\":\"eq\",\"value\":\"e2-standard-2\"}]"
-
-# Filter Azure VMs by resource group
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudSpecificDetails.resourceGroup\",\"operator\":\"eq\",\"value\":\"my-rg\"}]"
+# Get stopped or terminated VMs
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"status\",\"operator\":\"in\",\"value\":[\"stopped\",\"terminated\"]}]"
 ```
 
-##### Advanced Filtering with Operators
-
+### 3. Filter by Instance Type
 ```bash
-# VMs created in the last 24 hours
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"createdAt\",\"operator\":\"gt\",\"value\":\"2025-01-26T00:00:00Z\"}]"
+# Get specific instance types
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"instanceType\",\"operator\":\"in\",\"value\":[\"t2.micro\",\"t3.small\",\"e2-standard-2\"]}]"
 
-# VMs with names NOT containing "test"
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"name\",\"operator\":\"neq\",\"value\":\"test\"}]"
+# Exclude small instances
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"instanceType\",\"operator\":\"nin\",\"value\":[\"t2.nano\",\"t2.micro\"]}]"
 ```
 
-#### Combined Parameters
-
+### 4. Search by Name
 ```bash
-# Get AWS VMs, running status, sorted by name, page 1 with 5 items
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?page=1&pageSize=5&sortBy=name&sortOrder=asc&filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"},{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"running\"}]"
+# Case-sensitive partial match
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"name\",\"operator\":\"like\",\"value\":\"web-server\"}]"
+
+# Case-insensitive partial match
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"name\",\"operator\":\"ilike\",\"value\":\"WEB\"}]"
+```
+
+### 5. Filter by Location
+```bash
+# Get VMs in specific regions
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"location\",\"operator\":\"in\",\"value\":[\"us-east-1\",\"us-west-2\",\"East US\"]}]"
+```
+
+### 6. Date Range Filtering
+```bash
+# Get VMs created in the last 30 days
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"createdAt\",\"operator\":\"gte\",\"value\":\"2023-11-01T00:00:00Z\"}]"
+
+# Get VMs created between specific dates
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"createdAt\",\"operator\":\"between\",\"value\":[\"2023-01-01T00:00:00Z\",\"2023-12-31T23:59:59Z\"]}]"
+```
+
+### 7. Null/Empty Value Filtering
+```bash
+# Get VMs without public IP addresses
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"publicIpAddress\",\"operator\":\"null\",\"value\":true}]"
+
+# Get VMs with public IP addresses
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"publicIpAddress\",\"operator\":\"null\",\"value\":false}]"
+```
+
+### 8. Complex Multi-Filter Queries
+```bash
+# Running AWS instances in specific regions
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"},{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"running\"},{\"field\":\"location\",\"operator\":\"in\",\"value\":[\"us-east-1\",\"us-west-2\"]}]"
+
+# Non-production instances (exclude instances with "prod" in name)
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"name\",\"operator\":\"ilike\",\"value\":\"prod\"}]"
+
+# Large instances across all clouds
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"instanceType\",\"operator\":\"in\",\"value\":[\"m5.large\",\"Standard_D4s_v3\",\"n1-standard-4\"]}]"
+```
+
+### 9. Comprehensive Query with Pagination and Sorting
+```bash
+# Get running web servers, sorted by creation date, with pagination
+curl -X GET "http://localhost:8080/api/v1/vms?page=1&pageSize=10&sortBy=createdAt&sortOrder=desc&filter=[{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"running\"},{\"field\":\"name\",\"operator\":\"ilike\",\"value\":\"web\"}]"
+```
+
+## Cloud-Specific Filtering
+
+### AWS-Specific Filters
+```bash
+# Filter by VPC ID (AWS only)
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"},{\"field\":\"vpcId\",\"operator\":\"eq\",\"value\":\"vpc-12345678\"}]"
+
+# Filter by availability zone
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"},{\"field\":\"availabilityZone\",\"operator\":\"like\",\"value\":\"us-east-1\"}]"
+```
+
+### Azure-Specific Filters
+```bash
+# Filter by resource group (Azure only)
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"azure\"},{\"field\":\"resourceGroup\",\"operator\":\"eq\",\"value\":\"production\"}]"
+
+# Filter by VM size
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"azure\"},{\"field\":\"vmSize\",\"operator\":\"like\",\"value\":\"Standard_D\"}]"
+```
+
+### GCP-Specific Filters
+```bash
+# Filter by project ID (GCP only)
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"gcp\"},{\"field\":\"projectId\",\"operator\":\"eq\",\"value\":\"my-project-123456\"}]"
+
+# Filter by zone
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"gcp\"},{\"field\":\"zone\",\"operator\":\"like\",\"value\":\"us-central1\"}]"
+```
+
+## Error Examples
+
+### Invalid Filter Operator
+```bash
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"status\",\"operator\":\"invalid\",\"value\":\"running\"}]"
+# Response: 400 Bad Request
+# {"message":"Query parameter validation failed","code":"VALIDATION_ERROR","details":"filter 0: unsupported operator: invalid"}
+```
+
+### Invalid Page Size
+```bash
+curl -X GET "http://localhost:8080/api/v1/vms?pageSize=2000"
+# Response: 400 Bad Request
+# {"message":"Invalid query parameters","code":"INVALID_PARAMS","details":"pageSize cannot exceed 1000"}
+```
+
+### Invalid JSON Filter
+```bash
+curl -X GET "http://localhost:8080/api/v1/vms?filter=invalid-json"
+# Response: 400 Bad Request
+# {"message":"Invalid query parameters","code":"INVALID_PARAMS","details":"invalid filter JSON: invalid character 'i' looking for beginning of value"}
 ```
 
 ## Response Format
 
-### Success Response
-
+### Successful Response
 ```json
 {
   "data": [
@@ -135,203 +181,132 @@ curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
       "name": "web-server-01",
       "cloudType": "aws",
       "status": "running",
-      "createdAt": "2025-01-25T16:16:00Z",
-      "updatedAt": "2025-01-26T16:16:00Z",
+      "createdAt": "2023-11-15T10:30:00Z",
+      "updatedAt": "2023-11-15T12:00:00Z",
       "cloudAccountId": "123456789012",
       "location": "us-east-1",
       "instanceType": "t2.micro",
       "cloudSpecificDetails": {
-        "cloudType": "aws",
+        "id": "i-1234567890abcdef0",
+        "name": "web-server-01",
+        "status": "running",
+        "createdAt": "2023-11-15T10:30:00Z",
+        "updatedAt": "2023-11-15T12:00:00Z",
+        "location": "us-east-1",
+        "instanceType": "t2.micro",
+        "accountId": "123456789012",
         "vpcId": "vpc-12345678",
         "subnetId": "subnet-12345678",
         "securityGroupIds": ["sg-12345678", "sg-98765432"],
         "privateIpAddress": "10.0.1.100",
-        "publicIpAddress": "54.123.45.67"
+        "publicIpAddress": "54.123.45.67",
+        "keyName": "my-key-pair",
+        "imageId": "ami-0abcdef1234567890",
+        "launchTime": "2023-11-15T10:30:00Z",
+        "availabilityZone": "us-east-1a",
+        "architecture": "x86_64",
+        "virtualizationType": "hvm",
+        "platform": "linux",
+        "rootDeviceType": "ebs",
+        "monitoringState": "enabled",
+        "ebsOptimized": true,
+        "tags": {
+          "Environment": "production",
+          "Owner": "team-web"
+        }
       }
     }
   ],
   "pagination": {
     "page": 1,
     "pageSize": 20,
-    "totalItems": 100,
-    "totalPages": 5
+    "totalItems": 42,
+    "totalPages": 3
   }
 }
 ```
 
 ### Error Response
-
 ```json
 {
-  "message": "Invalid filter parameter"
+  "message": "Query parameter validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": "filter 0: unsupported operator: invalid"
 }
 ```
 
-## Filter Operators
+## Health Check
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `eq` | Equal to | `{"field":"cloudType","operator":"eq","value":"aws"}` |
-| `neq` | Not equal to | `{"field":"status","operator":"neq","value":"stopped"}` |
-| `contains` | Contains substring | `{"field":"name","operator":"contains","value":"web"}` |
-| `lt` | Less than | `{"field":"createdAt","operator":"lt","value":"2025-01-01T00:00:00Z"}` |
-| `gt` | Greater than | `{"field":"createdAt","operator":"gt","value":"2025-01-01T00:00:00Z"}` |
-| `le` | Less than or equal | `{"field":"createdAt","operator":"le","value":"2025-01-01T00:00:00Z"}` |
-| `ge` | Greater than or equal | `{"field":"createdAt","operator":"ge","value":"2025-01-01T00:00:00Z"}` |
+### Check Service Health
+```bash
+curl -X GET "http://localhost:8080/health"
+```
 
-## Cloud-Specific Fields
-
-### AWS Fields
-- `cloudSpecificDetails.vpcId` - VPC ID
-- `cloudSpecificDetails.subnetId` - Subnet ID
-- `cloudSpecificDetails.securityGroupIds` - Security group IDs (array)
-- `cloudSpecificDetails.privateIpAddress` - Private IP address
-- `cloudSpecificDetails.publicIpAddress` - Public IP address
-
-### GCP Fields
-- `cloudSpecificDetails.machineType` - Machine type
-- `cloudSpecificDetails.network` - Network name
-- `cloudSpecificDetails.region` - Region
-- `cloudSpecificDetails.privateIpAddress` - Private IP address
-- `cloudSpecificDetails.publicIpAddress` - Public IP address
-
-### Azure Fields
-- `cloudSpecificDetails.resourceGroup` - Resource group name
-- `cloudSpecificDetails.vmSize` - VM size
-- `cloudSpecificDetails.privateIpAddress` - Private IP address
-- `cloudSpecificDetails.publicIpAddress` - Public IP address
-
-## HTTP Status Codes
-
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 400 | Bad Request (invalid parameters) |
-| 401 | Unauthorized (missing or invalid token) |
-| 500 | Internal Server Error |
-
-## Rate Limiting
-
-- Maximum page size: 100 items
-- Default page size: 20 items
-- Pages are 1-indexed (first page is page 1)
-
-## JavaScript Examples
-
-### Using Fetch API
-
-```javascript
-async function getVMs(filters = [], page = 1, pageSize = 20) {
-  const params = new URLSearchParams({
-    page: page.toString(),
-    pageSize: pageSize.toString()
-  });
-  
-  if (filters.length > 0) {
-    params.append('filter', JSON.stringify(filters));
+### Expected Response
+```json
+{
+  "status": "healthy",
+  "timestamp": "2023-11-15T12:00:00Z",
+  "version": "1.0.0",
+  "uptime": "2h30m15s",
+  "database": {
+    "status": "healthy",
+    "ping": "2.5ms",
+    "connections": 5
+  },
+  "services": {
+    "api": "healthy"
   }
-  
-  const response = await fetch(`/api/v1/vms?${params}`, {
-    headers: {
-      'Authorization': `Bearer ${YOUR_JWT_TOKEN}`,
-      'Content-Type': 'application/json'
-    }
-  });
-  
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  
-  return await response.json();
 }
-
-// Usage examples
-const allVMs = await getVMs();
-const awsVMs = await getVMs([{field: 'cloudType', operator: 'eq', value: 'aws'}]);
-const runningVMs = await getVMs([{field: 'status', operator: 'eq', value: 'running'}]);
 ```
 
-### Using Axios
+## Filter Operator Reference
 
-```javascript
-import axios from 'axios';
+| Operator | Description | Example Value | Use Case |
+|----------|-------------|---------------|-----------|
+| `eq` | Equal | `"running"` | Exact match |
+| `ne` | Not Equal | `"stopped"` | Exclude specific values |
+| `lt` | Less Than | `"2023-01-01"` | Date/number comparisons |
+| `lte` | Less Than or Equal | `"2023-01-01"` | Date/number comparisons |
+| `gt` | Greater Than | `"2023-01-01"` | Date/number comparisons |
+| `gte` | Greater Than or Equal | `"2023-01-01"` | Date/number comparisons |
+| `in` | In List | `["t2.micro", "t3.small"]` | Multiple options |
+| `nin` | Not in List | `["stopped", "terminated"]` | Exclude multiple values |
+| `like` | Partial Match | `"web-server"` | Contains pattern |
+| `ilike` | Case-Insensitive LIKE | `"WEB"` | Case-insensitive contains |
+| `between` | Between Two Values | `["2023-01-01", "2023-12-31"]` | Range queries |
+| `null` | Is Null / Not Null | `true` / `false` | Empty value checks |
 
-const api = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
-  headers: {
-    'Authorization': `Bearer ${YOUR_JWT_TOKEN}`
-  }
-});
+## Common Use Cases
 
-// Get all VMs
-const response = await api.get('/vms');
-
-// Get filtered VMs
-const awsVMs = await api.get('/vms', {
-  params: {
-    filter: JSON.stringify([{field: 'cloudType', operator: 'eq', value: 'aws'}])
-  }
-});
-```
-
-## Python Examples
-
-### Using requests
-
-```python
-import requests
-import json
-
-def get_vms(token, filters=None, page=1, page_size=20, sort_by='id', sort_order='asc'):
-    url = 'http://localhost:8080/api/v1/vms'
-    headers = {'Authorization': f'Bearer {token}'}
-    params = {
-        'page': page,
-        'pageSize': page_size,
-        'sortBy': sort_by,
-        'sortOrder': sort_order
-    }
-    
-    if filters:
-        params['filter'] = json.dumps(filters)
-    
-    response = requests.get(url, headers=headers, params=params)
-    response.raise_for_status()
-    return response.json()
-
-# Usage examples
-token = 'YOUR_JWT_TOKEN'
-all_vms = get_vms(token)
-aws_vms = get_vms(token, filters=[{'field': 'cloudType', 'operator': 'eq', 'value': 'aws'}])
-```
-
-## Testing the API
-
-### Running Tests
-
+### 1. DevOps Monitoring
 ```bash
-# Run all tests
-make test
-
-# Run only VM handler tests
-go test -v ./internal/handlers -run TestVMHandler
+# Get all non-running instances for alerting
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"status\",\"operator\":\"ne\",\"value\":\"running\"}]"
 ```
 
-### Seeding Test Data
-
+### 2. Cost Optimization
 ```bash
-# Seed the database with sample VM data
-make seed
+# Find large instances that might be over-provisioned
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"instanceType\",\"operator\":\"in\",\"value\":[\"m5.xlarge\",\"Standard_D8s_v3\",\"n1-standard-8\"]}]"
 ```
 
-### Manual Testing with curl
-
+### 3. Security Auditing
 ```bash
-# Test basic endpoint
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms"
+# Find instances with public IP addresses
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"publicIpAddress\",\"operator\":\"null\",\"value\":false}]"
+```
 
-# Test with filters
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"}]"
+### 4. Environment Management
+```bash
+# Get all production instances
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"name\",\"operator\":\"ilike\",\"value\":\"prod\"}]"
+```
+
+### 5. Multi-Cloud Inventory
+```bash
+# Compare instance counts across clouds
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"aws\"}]" | jq '.pagination.totalItems'
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"azure\"}]" | jq '.pagination.totalItems'
+curl -X GET "http://localhost:8080/api/v1/vms?filter=[{\"field\":\"cloudType\",\"operator\":\"eq\",\"value\":\"gcp\"}]" | jq '.pagination.totalItems'
 ```
