@@ -1,0 +1,57 @@
+-------------------------------------+-----------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ _cq_sync_time                       | timestamp without time zone |           |          |         | plain    |             |              | 
+ _cq_source_name                     | text                        |           |          |         | extended |             |              | 
+ _cq_id                              | uuid                        |           | not null |         | plain    |             |              | 
+ _cq_parent_id                       | uuid                        |           |          |         | plain    |             |              | 
+ project_id                          | text                        |           |          |         | extended |             |              | 
+ advanced_machine_features           | jsonb                       |           |          |         | extended |             |              | 
+ can_ip_forward                      | boolean                     |           |          |         | plain    |             |              | 
+ confidential_instance_config        | jsonb                       |           |          |         | extended |             |              | 
+ cpu_platform                        | text                        |           |          |         | extended |             |              | 
+ creation_timestamp                  | text                        |           |          |         | extended |             |              | 
+ deletion_protection                 | boolean                     |           |          |         | plain    |             |              | 
+ description                         | text                        |           |          |         | extended |             |              | 
+ disks                               | jsonb                       |           |          |         | extended |             |              | 
+ display_device                      | jsonb                       |           |          |         | extended |             |              | 
+ fingerprint                         | text                        |           |          |         | extended |             |              | 
+ guest_accelerators                  | jsonb                       |           |          |         | extended |             |              | 
+ hostname                            | text                        |           |          |         | extended |             |              | 
+ id                                  | bigint                      |           |          |         | plain    |             |              | 
+ instance_encryption_key             | jsonb                       |           |          |         | extended |             |              | 
+ key_revocation_action_type          | text                        |           |          |         | extended |             |              | 
+ kind                                | text                        |           |          |         | extended |             |              | 
+ label_fingerprint                   | text                        |           |          |         | extended |             |              | 
+ labels                              | jsonb                       |           |          |         | extended |             |              | 
+ last_start_timestamp                | text                        |           |          |         | extended |             |              | 
+ last_stop_timestamp                 | text                        |           |          |         | extended |             |              | 
+ last_suspended_timestamp            | text                        |           |          |         | extended |             |              | 
+ machine_type                        | text                        |           |          |         | extended |             |              | 
+ metadata                            | jsonb                       |           |          |         | extended |             |              | 
+ min_cpu_platform                    | text                        |           |          |         | extended |             |              | 
+ name                                | text                        |           |          |         | extended |             |              | 
+ network_interfaces                  | jsonb                       |           |          |         | extended |             |              | 
+ network_performance_config          | jsonb                       |           |          |         | extended |             |              | 
+ params                              | jsonb                       |           |          |         | extended |             |              | 
+ private_ipv6_google_access          | text                        |           |          |         | extended |             |              | 
+ reservation_affinity                | jsonb                       |           |          |         | extended |             |              | 
+ resource_policies                   | text[]                      |           |          |         | extended |             |              | 
+ resource_status                     | jsonb                       |           |          |         | extended |             |              | 
+ satisfies_pzs                       | boolean                     |           |          |         | plain    |             |              | 
+ scheduling                          | jsonb                       |           |          |         | extended |             |              | 
+ self_link                           | text                        |           | not null |         | extended |             |              | 
+ service_accounts                    | jsonb                       |           |          |         | extended |             |              | 
+ shielded_instance_config            | jsonb                       |           |          |         | extended |             |              | 
+ shielded_instance_integrity_policy  | jsonb                       |           |          |         | extended |             |              | 
+ source_machine_image                | text                        |           |          |         | extended |             |              | 
+ source_machine_image_encryption_key | jsonb                       |           |          |         | extended |             |              | 
+ start_restricted                    | boolean                     |           |          |         | plain    |             |              | 
+ status                              | text                        |           |          |         | extended |             |              | 
+ status_message                      | text                        |           |          |         | extended |             |              | 
+ tags                                | jsonb                       |           |          |         | extended |             |              | 
+ zone                                | text                        |           |          |         | extended |             |              | 
+Indexes:
+    "gcp_compute_instances_cqpk" PRIMARY KEY, btree (self_link)
+    "gcp_compute_instances__cq_id_key" UNIQUE CONSTRAINT, btree (_cq_id)
+Access method: heap
+
+(END)
