@@ -1,0 +1,73 @@
+inventory=# \d+ aws_ec2_instances
+                                                                Table "public.aws_ec2_instances"
+                   Column                   |            Type             | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+--------------------------------------------+-----------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ _cq_sync_time                              | timestamp without time zone |           |          |         | plain    |             |              | 
+ _cq_source_name                            | text                        |           |          |         | extended |             |              | 
+ _cq_id                                     | uuid                        |           | not null |         | plain    |             |              | 
+ _cq_parent_id                              | uuid                        |           |          |         | plain    |             |              | 
+ account_id                                 | text                        |           |          |         | extended |             |              | 
+ region                                     | text                        |           |          |         | extended |             |              | 
+ arn                                        | text                        |           | not null |         | extended |             |              | 
+ state_transition_reason_time               | timestamp without time zone |           |          |         | plain    |             |              | 
+ tags                                       | jsonb                       |           |          |         | extended |             |              | 
+ ami_launch_index                           | bigint                      |           |          |         | plain    |             |              | 
+ architecture                               | text                        |           |          |         | extended |             |              | 
+ block_device_mappings                      | jsonb                       |           |          |         | extended |             |              | 
+ boot_mode                                  | text                        |           |          |         | extended |             |              | 
+ capacity_reservation_id                    | text                        |           |          |         | extended |             |              | 
+ capacity_reservation_specification         | jsonb                       |           |          |         | extended |             |              | 
+ client_token                               | text                        |           |          |         | extended |             |              | 
+ cpu_options                                | jsonb                       |           |          |         | extended |             |              | 
+ current_instance_boot_mode                 | text                        |           |          |         | extended |             |              | 
+ ebs_optimized                              | boolean                     |           |          |         | plain    |             |              | 
+ elastic_gpu_associations                   | jsonb                       |           |          |         | extended |             |              | 
+ elastic_inference_accelerator_associations | jsonb                       |           |          |         | extended |             |              | 
+ ena_support                                | boolean                     |           |          |         | plain    |             |              | 
+ enclave_options                            | jsonb                       |           |          |         | extended |             |              | 
+ hibernation_options                        | jsonb                       |           |          |         | extended |             |              | 
+ hypervisor                                 | text                        |           |          |         | extended |             |              | 
+ iam_instance_profile                       | jsonb                       |           |          |         | extended |             |              | 
+ image_id                                   | text                        |           |          |         | extended |             |              | 
+ instance_id                                | text                        |           |          |         | extended |             |              | 
+ instance_lifecycle                         | text                        |           |          |         | extended |             |              | 
+ instance_type                              | text                        |           |          |         | extended |             |              | 
+ ipv6_address                               | text                        |           |          |         | extended |             |              | 
+ kernel_id                                  | text                        |           |          |         | extended |             |              | 
+ key_name                                   | text                        |           |          |         | extended |             |              | 
+ launch_time                                | timestamp without time zone |           |          |         | plain    |             |              | 
+ licenses                                   | jsonb                       |           |          |         | extended |             |              | 
+ maintenance_options                        | jsonb                       |           |          |         | extended |             |              | 
+ metadata_options                           | jsonb                       |           |          |         | extended |             |              | 
+ monitoring                                 | jsonb                       |           |          |         | extended |             |              | 
+ network_interfaces                         | jsonb                       |           |          |         | extended |             |              | 
+ outpost_arn                                | text                        |           |          |         | extended |             |              | 
+ placement                                  | jsonb                       |           |          |         | extended |             |              | 
+ platform                                   | text                        |           |          |         | extended |             |              | 
+ platform_details                           | text                        |           |          |         | extended |             |              | 
+ private_dns_name                           | text                        |           |          |         | extended |             |              | 
+ private_dns_name_options                   | jsonb                       |           |          |         | extended |             |              | 
+ private_ip_address                         | text                        |           |          |         | extended |             |              | 
+ product_codes                              | jsonb                       |           |          |         | extended |             |              | 
+ public_dns_name                            | text                        |           |          |         | extended |             |              | 
+ public_ip_address                          | text                        |           |          |         | extended |             |              | 
+ ramdisk_id                                 | text                        |           |          |         | extended |             |              | 
+ root_device_name                           | text                        |           |          |         | extended |             |              | 
+ root_device_type                           | text                        |           |          |         | extended |             |              | 
+ security_groups                            | jsonb                       |           |          |         | extended |             |              | 
+ source_dest_check                          | boolean                     |           |          |         | plain    |             |              | 
+ spot_instance_request_id                   | text                        |           |          |         | extended |             |              | 
+ sriov_net_support                          | text                        |           |          |         | extended |             |              | 
+ state                                      | jsonb                       |           |          |         | extended |             |              | 
+ state_reason                               | jsonb                       |           |          |         | extended |             |              | 
+ state_transition_reason                    | text                        |           |          |         | extended |             |              | 
+ subnet_id                                  | text                        |           |          |         | extended |             |              | 
+ tpm_support                                | text                        |           |          |         | extended |             |              | 
+ usage_operation                            | text                        |           |          |         | extended |             |              | 
+ usage_operation_update_time                | timestamp without time zone |           |          |         | plain    |             |              | 
+ virtualization_type                        | text                        |           |          |         | extended |             |              | 
+ vpc_id                                     | text                        |           |          |         | extended |             |              | 
+Indexes:
+    "aws_ec2_instances_cqpk" PRIMARY KEY, btree (arn)
+    "aws_ec2_instances__cq_id_key" UNIQUE CONSTRAINT, btree (_cq_id)
+Access method: heap
