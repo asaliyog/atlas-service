@@ -1,0 +1,27 @@
+inventory=# \d+ azure_compute_virtual_machines
+                                             Table "public.azure_compute_virtual_machines"
+      Column       |            Type             | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+-------------------+-----------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ _cq_sync_time     | timestamp without time zone |           |          |         | plain    |             |              | 
+ _cq_source_name   | text                        |           |          |         | extended |             |              | 
+ _cq_id            | uuid                        |           | not null |         | plain    |             |              | 
+ _cq_parent_id     | uuid                        |           |          |         | plain    |             |              | 
+ subscription_id   | text                        |           |          |         | extended |             |              | 
+ instance_view     | jsonb                       |           |          |         | extended |             |              | 
+ location          | text                        |           |          |         | extended |             |              | 
+ extended_location | jsonb                       |           |          |         | extended |             |              | 
+ identity          | jsonb                       |           |          |         | extended |             |              | 
+ plan              | jsonb                       |           |          |         | extended |             |              | 
+ properties        | jsonb                       |           |          |         | extended |             |              | 
+ tags              | jsonb                       |           |          |         | extended |             |              | 
+ zones             | text[]                      |           |          |         | extended |             |              | 
+ id                | text                        |           | not null |         | extended |             |              | 
+ name              | text                        |           |          |         | extended |             |              | 
+ resources         | jsonb                       |           |          |         | extended |             |              | 
+ type              | text                        |           |          |         | extended |             |              | 
+Indexes:
+    "azure_compute_virtual_machines_cqpk" PRIMARY KEY, btree (id)
+    "azure_compute_virtual_machines__cq_id_key" UNIQUE CONSTRAINT, btree (_cq_id)
+Access method: heap
+
+inventory=# 
