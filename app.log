@@ -1,0 +1,27 @@
+nohup: ignoring input
+go run cmd/server/main.go
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /health                   --> golang-service/internal/handlers.HealthCheck (5 handlers)
+[GIN-debug] GET    /api/v1/users             --> golang-service/internal/handlers.(*Handler).GetUsers-fm (5 handlers)
+[GIN-debug] POST   /api/v1/users             --> golang-service/internal/handlers.(*Handler).CreateUser-fm (5 handlers)
+[GIN-debug] GET    /api/v1/users/:id         --> golang-service/internal/handlers.(*Handler).GetUser-fm (5 handlers)
+[GIN-debug] PUT    /api/v1/users/:id         --> golang-service/internal/handlers.(*Handler).UpdateUser-fm (5 handlers)
+[GIN-debug] DELETE /api/v1/users/:id         --> golang-service/internal/handlers.(*Handler).DeleteUser-fm (5 handlers)
+[GIN-debug] GET    /api/v1/vms               --> golang-service/internal/handlers.(*Handler).GetVMs-fm (5 handlers)
+[GIN-debug] GET    /swagger/*any             --> github.com/swaggo/gin-swagger.CustomWrapHandler.func1 (4 handlers)
+2025/07/07 10:31:37 Server starting on port 8080
+2025/07/07 10:31:37 Health check available at: http://localhost:8080/health
+2025/07/07 10:31:37 Swagger documentation available at: http://localhost:8080/swagger/index.html
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8080
+[GIN] 2025/07/07 - 10:31:41 | 200 |    1.367614ms |             ::1 | GET      "/health"
+[GIN] 2025/07/07 - 10:31:46 | 200 |     230.914µs |             ::1 | GET      "/swagger/index.html"
+2025/07/07 10:31:47 Auth bypassed for local development
+[GIN] 2025/07/07 - 10:31:47 | 200 |    2.953462ms |             ::1 | GET      "/api/v1/users"
+make: *** [Makefile:8: run] Terminated

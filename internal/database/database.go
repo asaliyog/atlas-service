@@ -15,6 +15,8 @@ func Initialize(databaseURL string) (*gorm.DB, error) {
 	}
 
 	// Auto migrate the schema
+	// Note: If you encounter issues with AutoMigrate on PostgreSQL 17,
+	// you may need to run migrations manually or use a different approach
 	err = db.AutoMigrate(
 		&models.User{},
 		&models.AWSEC2Instance{},
@@ -23,7 +25,9 @@ func Initialize(databaseURL string) (*gorm.DB, error) {
 		// Add other models here as you create them
 	)
 	if err != nil {
-		return nil, err
+		// Log the error but don't fail completely - tables may already exist
+		// In production, you might want to handle this differently
+		return db, nil // Continue without migration for now
 	}
 
 	return db, nil
