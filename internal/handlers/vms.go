@@ -148,7 +148,7 @@ func (h *Handler) fetchAWSVMs(params models.VMQueryParams) ([]models.VM, int64, 
 	var vms []models.VM
 	for _, instance := range instances {
 		vm := models.VM{
-			ID:             instance.ID,
+			ID:             instance.InstanceID,
 			Name:           instance.Name,
 			CloudType:      "aws",
 			Status:         instance.Status,
@@ -156,7 +156,7 @@ func (h *Handler) fetchAWSVMs(params models.VMQueryParams) ([]models.VM, int64, 
 			UpdatedAt:      instance.UpdatedAt,
 			CloudAccountID: instance.AccountID,
 			Location:       instance.Location,
-			InstanceType:   instance.InstanceType,
+			InstanceType:   instance.InstanceTypeAlt,
 		}
 		
 		// Convert cloud-specific details to JSON
@@ -206,7 +206,7 @@ func (h *Handler) fetchAzureVMs(params models.VMQueryParams) ([]models.VM, int64
 			UpdatedAt:      instance.UpdatedAt,
 			CloudAccountID: instance.SubscriptionID,
 			Location:       instance.Location,
-			InstanceType:   instance.InstanceType,
+			InstanceType:   instance.InstanceTypeAlt,
 		}
 		
 		// Convert cloud-specific details to JSON
@@ -248,15 +248,15 @@ func (h *Handler) fetchGCPVMs(params models.VMQueryParams) ([]models.VM, int64, 
 	var vms []models.VM
 	for _, instance := range instances {
 		vm := models.VM{
-			ID:             instance.ID,
+			ID:             instance.SelfLink,
 			Name:           instance.Name,
 			CloudType:      "gcp",
 			Status:         instance.Status,
 			CreatedAt:      instance.CreatedAt,
 			UpdatedAt:      instance.UpdatedAt,
 			CloudAccountID: instance.ProjectID,
-			Location:       instance.Location,
-			InstanceType:   instance.InstanceType,
+			Location:       instance.Zone,
+			InstanceType:   instance.InstanceTypeAlt,
 		}
 		
 		// Convert cloud-specific details to JSON
@@ -440,11 +440,11 @@ func (h *Handler) mapFieldToDBColumn(field string, cloudType string) string {
 	case "instanceType":
 		switch cloudType {
 		case "aws":
-			return "instance_type"
+			return "instance_type_alt"
 		case "azure":
-			return "vm_size"
+			return "instance_type_alt"
 		case "gcp":
-			return "machine_type"
+			return "instance_type_alt"
 		}
 	case "createdAt":
 		return "created_at"

@@ -1,31 +1,19 @@
 package database
 
 import (
-	"golang-service/internal/models"
-
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-// Initialize initializes the database connection and runs migrations
+// Initialize initializes the database connection
 func Initialize(databaseURL string) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
 
-	// Auto migrate the schema
-	err = db.AutoMigrate(
-		&models.User{},
-		&models.AWSEC2Instance{},
-		&models.AzureVMInstance{},
-		&models.GCPComputeInstance{},
-		// Add other models here as you create them
-	)
-	if err != nil {
-		return nil, err
-	}
-
+	// For now, skip AutoMigrate since the tables are created by init.sql
+	// The tables should already exist from the init.sql script
 	return db, nil
 }
 

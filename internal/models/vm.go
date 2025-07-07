@@ -25,33 +25,78 @@ type BaseVM struct {
 
 // AWSEC2Instance represents AWS EC2 instances
 type AWSEC2Instance struct {
-	BaseVM
-	AccountID                string          `json:"accountId" gorm:"column:account_id;index"`
-	VpcID                    string          `json:"vpcId" gorm:"column:vpc_id"`
-	SubnetID                 string          `json:"subnetId" gorm:"column:subnet_id"`
-	SecurityGroupIDs         json.RawMessage `json:"securityGroupIds" gorm:"column:security_group_ids;type:json"`
-	PrivateIPAddress         string          `json:"privateIpAddress" gorm:"column:private_ip_address"`
-	PublicIPAddress          string          `json:"publicIpAddress" gorm:"column:public_ip_address"`
-	KeyName                  string          `json:"keyName" gorm:"column:key_name"`
-	ImageID                  string          `json:"imageId" gorm:"column:image_id"`
-	LaunchTime               time.Time       `json:"launchTime" gorm:"column:launch_time"`
-	AvailabilityZone         string          `json:"availabilityZone" gorm:"column:availability_zone"`
-	PublicDnsName            string          `json:"publicDnsName" gorm:"column:public_dns_name"`
-	PrivateDnsName           string          `json:"privateDnsName" gorm:"column:private_dns_name"`
-	Architecture             string          `json:"architecture"`
-	VirtualizationType       string          `json:"virtualizationType" gorm:"column:virtualization_type"`
-	Platform                 string          `json:"platform"`
-	RootDeviceType           string          `json:"rootDeviceType" gorm:"column:root_device_type"`
-	MonitoringState          string          `json:"monitoringState" gorm:"column:monitoring_state"`
-	PlacementGroupName       string          `json:"placementGroupName" gorm:"column:placement_group_name"`
-	PlacementPartitionNumber int             `json:"placementPartitionNumber" gorm:"column:placement_partition_number"`
-	PlacementTenancy         string          `json:"placementTenancy" gorm:"column:placement_tenancy"`
-	SpotInstanceRequestID    string          `json:"spotInstanceRequestId" gorm:"column:spot_instance_request_id"`
-	SriovNetSupport          string          `json:"sriovNetSupport" gorm:"column:sriov_net_support"`
-	EbsOptimized             bool            `json:"ebsOptimized" gorm:"column:ebs_optimized"`
-	EnaSupport               bool            `json:"enaSupport" gorm:"column:ena_support"`
-	SourceDestCheck          bool            `json:"sourceDestCheck" gorm:"column:source_dest_check"`
-	Tags                     json.RawMessage `json:"tags" gorm:"type:json"`
+	CqSyncTime                              time.Time       `json:"-" gorm:"column:_cq_sync_time"`
+	CqSourceName                            string          `json:"-" gorm:"column:_cq_source_name"`
+	CqID                                    string          `json:"-" gorm:"column:_cq_id;primarykey"`
+	CqParentID                              string          `json:"-" gorm:"column:_cq_parent_id"`
+	AccountID                               string          `json:"accountId" gorm:"column:account_id;index"`
+	Region                                  string          `json:"region"`
+	ARN                                     string          `json:"arn" gorm:"column:arn;primarykey"`
+	StateTransitionReasonTime               *time.Time      `json:"-" gorm:"column:state_transition_reason_time"`
+	Tags                                    json.RawMessage `json:"tags" gorm:"type:json"`
+	AmiLaunchIndex                          *int64          `json:"-" gorm:"column:ami_launch_index"`
+	Architecture                            string          `json:"architecture"`
+	BlockDeviceMappings                     json.RawMessage `json:"-" gorm:"column:block_device_mappings;type:json"`
+	BootMode                                string          `json:"-" gorm:"column:boot_mode"`
+	CapacityReservationID                   string          `json:"-" gorm:"column:capacity_reservation_id"`
+	CapacityReservationSpecification        json.RawMessage `json:"-" gorm:"column:capacity_reservation_specification;type:json"`
+	ClientToken                             string          `json:"-" gorm:"column:client_token"`
+	CpuOptions                              json.RawMessage `json:"-" gorm:"column:cpu_options;type:json"`
+	CurrentInstanceBootMode                 string          `json:"-" gorm:"column:current_instance_boot_mode"`
+	EbsOptimized                            *bool           `json:"ebsOptimized" gorm:"column:ebs_optimized"`
+	ElasticGpuAssociations                  json.RawMessage `json:"-" gorm:"column:elastic_gpu_associations;type:json"`
+	ElasticInferenceAcceleratorAssociations json.RawMessage `json:"-" gorm:"column:elastic_inference_accelerator_associations;type:json"`
+	EnaSupport                              *bool           `json:"enaSupport" gorm:"column:ena_support"`
+	EnclaveOptions                          json.RawMessage `json:"-" gorm:"column:enclave_options;type:json"`
+	HibernationOptions                      json.RawMessage `json:"-" gorm:"column:hibernation_options;type:json"`
+	Hypervisor                              string          `json:"hypervisor"`
+	IamInstanceProfile                      json.RawMessage `json:"-" gorm:"column:iam_instance_profile;type:json"`
+	ImageID                                 string          `json:"imageId" gorm:"column:image_id"`
+	InstanceID                              string          `json:"instanceId" gorm:"column:instance_id"`
+	InstanceLifecycle                       string          `json:"-" gorm:"column:instance_lifecycle"`
+	InstanceType                            string          `json:"instanceType" gorm:"column:instance_type"`
+	Ipv6Address                             string          `json:"-" gorm:"column:ipv6_address"`
+	KernelID                                string          `json:"-" gorm:"column:kernel_id"`
+	KeyName                                 string          `json:"keyName" gorm:"column:key_name"`
+	LaunchTime                              *time.Time      `json:"launchTime" gorm:"column:launch_time"`
+	Licenses                                json.RawMessage `json:"-" gorm:"column:licenses;type:json"`
+	MaintenanceOptions                      json.RawMessage `json:"-" gorm:"column:maintenance_options;type:json"`
+	MetadataOptions                         json.RawMessage `json:"-" gorm:"column:metadata_options;type:json"`
+	Monitoring                              json.RawMessage `json:"-" gorm:"column:monitoring;type:json"`
+	NetworkInterfaces                       json.RawMessage `json:"-" gorm:"column:network_interfaces;type:json"`
+	OutpostARN                              string          `json:"-" gorm:"column:outpost_arn"`
+	Placement                               json.RawMessage `json:"-" gorm:"column:placement;type:json"`
+	Platform                                string          `json:"platform"`
+	PlatformDetails                         string          `json:"-" gorm:"column:platform_details"`
+	PrivateDnsName                          string          `json:"privateDnsName" gorm:"column:private_dns_name"`
+	PrivateDnsNameOptions                   json.RawMessage `json:"-" gorm:"column:private_dns_name_options;type:json"`
+	PrivateIPAddress                        string          `json:"privateIpAddress" gorm:"column:private_ip_address"`
+	ProductCodes                            json.RawMessage `json:"-" gorm:"column:product_codes;type:json"`
+	PublicDnsName                           string          `json:"publicDnsName" gorm:"column:public_dns_name"`
+	PublicIPAddress                         string          `json:"publicIpAddress" gorm:"column:public_ip_address"`
+	RamdiskID                               string          `json:"-" gorm:"column:ramdisk_id"`
+	RootDeviceName                          string          `json:"-" gorm:"column:root_device_name"`
+	RootDeviceType                          string          `json:"rootDeviceType" gorm:"column:root_device_type"`
+	SecurityGroups                          json.RawMessage `json:"securityGroups" gorm:"column:security_groups;type:json"`
+	SourceDestCheck                         *bool           `json:"sourceDestCheck" gorm:"column:source_dest_check"`
+	SpotInstanceRequestID                   string          `json:"-" gorm:"column:spot_instance_request_id"`
+	SriovNetSupport                         string          `json:"-" gorm:"column:sriov_net_support"`
+	State                                   json.RawMessage `json:"state" gorm:"type:json"`
+	StateReason                             json.RawMessage `json:"-" gorm:"column:state_reason;type:json"`
+	StateTransitionReason                   string          `json:"-" gorm:"column:state_transition_reason"`
+	SubnetID                                string          `json:"subnetId" gorm:"column:subnet_id"`
+	TpmSupport                              string          `json:"-" gorm:"column:tpm_support"`
+	UsageOperation                          string          `json:"-" gorm:"column:usage_operation"`
+	UsageOperationUpdateTime                *time.Time      `json:"-" gorm:"column:usage_operation_update_time"`
+	VirtualizationType                      string          `json:"virtualizationType" gorm:"column:virtualization_type"`
+	VpcID                                   string          `json:"vpcId" gorm:"column:vpc_id"`
+	CreatedAt                               time.Time       `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt                               time.Time       `json:"updatedAt" gorm:"column:updated_at"`
+	DeletedAt                               gorm.DeletedAt  `json:"-" gorm:"column:deleted_at;index"`
+	Name                                    string          `json:"name"`
+	Status                                  string          `json:"status"`
+	Location                                string          `json:"location"`
+	InstanceTypeAlt                         string          `json:"instanceTypeAlt" gorm:"column:instance_type_alt"`
 }
 
 // TableName returns the table name for AWSEC2Instance
@@ -61,73 +106,91 @@ func (AWSEC2Instance) TableName() string {
 
 // AzureVMInstance represents Azure Virtual Machines
 type AzureVMInstance struct {
-	BaseVM
+	CqSyncTime        time.Time       `json:"-" gorm:"column:_cq_sync_time"`
+	CqSourceName      string          `json:"-" gorm:"column:_cq_source_name"`
+	CqID              string          `json:"-" gorm:"column:_cq_id;primarykey"`
+	CqParentID        string          `json:"-" gorm:"column:_cq_parent_id"`
 	SubscriptionID    string          `json:"subscriptionId" gorm:"column:subscription_id;index"`
-	ResourceGroup     string          `json:"resourceGroup" gorm:"column:resource_group"`
-	VMSize            string          `json:"vmSize" gorm:"column:vm_size"`
-	PrivateIPAddress  string          `json:"privateIpAddress" gorm:"column:private_ip_address"`
-	PublicIPAddress   string          `json:"publicIpAddress" gorm:"column:public_ip_address"`
-	NetworkInterfaces json.RawMessage `json:"networkInterfaces" gorm:"column:network_interfaces;type:json"`
-	OSDisk            json.RawMessage `json:"osDisk" gorm:"column:os_disk;type:json"`
-	DataDisks         json.RawMessage `json:"dataDisks" gorm:"column:data_disks;type:json"`
-	OSType            string          `json:"osType" gorm:"column:os_type"`
-	OSProfile         json.RawMessage `json:"osProfile" gorm:"column:os_profile;type:json"`
-	HardwareProfile   json.RawMessage `json:"hardwareProfile" gorm:"column:hardware_profile;type:json"`
-	StorageProfile    json.RawMessage `json:"storageProfile" gorm:"column:storage_profile;type:json"`
-	NetworkProfile    json.RawMessage `json:"networkProfile" gorm:"column:network_profile;type:json"`
-	SecurityProfile   json.RawMessage `json:"securityProfile" gorm:"column:security_profile;type:json"`
-	DiagnosticsProfile json.RawMessage `json:"diagnosticsProfile" gorm:"column:diagnostics_profile;type:json"`
-	AvailabilitySet   json.RawMessage `json:"availabilitySet" gorm:"column:availability_set;type:json"`
-	VirtualMachineScaleSet json.RawMessage `json:"virtualMachineScaleSet" gorm:"column:virtual_machine_scale_set;type:json"`
-	ProximityPlacementGroup json.RawMessage `json:"proximityPlacementGroup" gorm:"column:proximity_placement_group;type:json"`
-	Priority          string          `json:"priority"`
-	EvictionPolicy    string          `json:"evictionPolicy" gorm:"column:eviction_policy"`
-	BillingProfile    json.RawMessage `json:"billingProfile" gorm:"column:billing_profile;type:json"`
-	HostId            string          `json:"hostId" gorm:"column:host_id"`
-	LicenseType       string          `json:"licenseType" gorm:"column:license_type"`
-	VMId              string          `json:"vmId" gorm:"column:vm_id"`
+	InstanceView      json.RawMessage `json:"-" gorm:"column:instance_view;type:json"`
+	Location          string          `json:"location"`
+	ExtendedLocation  json.RawMessage `json:"-" gorm:"column:extended_location;type:json"`
+	Identity          json.RawMessage `json:"-" gorm:"column:identity;type:json"`
+	Plan              json.RawMessage `json:"-" gorm:"column:plan;type:json"`
+	Properties        json.RawMessage `json:"-" gorm:"column:properties;type:json"`
 	Tags              json.RawMessage `json:"tags" gorm:"type:json"`
+	Zones             []string        `json:"-" gorm:"column:zones;type:text[]"`
+	ID                string          `json:"id" gorm:"primarykey"`
+	Name              string          `json:"name"`
+	Resources         json.RawMessage `json:"-" gorm:"column:resources;type:json"`
+	Type              string          `json:"-" gorm:"column:type"`
+	CreatedAt         time.Time       `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt         time.Time       `json:"updatedAt" gorm:"column:updated_at"`
+	DeletedAt         gorm.DeletedAt  `json:"-" gorm:"column:deleted_at;index"`
+	Status            string          `json:"status"`
+	InstanceTypeAlt   string          `json:"instanceTypeAlt" gorm:"column:instance_type_alt"`
 }
 
 // TableName returns the table name for AzureVMInstance
 func (AzureVMInstance) TableName() string {
-	return "azure_vm_instances"
+	return "azure_compute_virtual_machines"
 }
 
 // GCPComputeInstance represents GCP Compute Engine instances
 type GCPComputeInstance struct {
-	BaseVM
-	ProjectID                string          `json:"projectId" gorm:"column:project_id;index"`
-	Zone                     string          `json:"zone"`
-	MachineType              string          `json:"machineType" gorm:"column:machine_type"`
-	PrivateIPAddress         string          `json:"privateIpAddress" gorm:"column:private_ip_address"`
-	PublicIPAddress          string          `json:"publicIpAddress" gorm:"column:public_ip_address"`
-	NetworkInterfaces        json.RawMessage `json:"networkInterfaces" gorm:"column:network_interfaces;type:json"`
-	Disks                    json.RawMessage `json:"disks" gorm:"type:json"`
-	Metadata                 json.RawMessage `json:"metadata" gorm:"type:json"`
-	Tags                     json.RawMessage `json:"tags" gorm:"type:json"`
-	Labels                   json.RawMessage `json:"labels" gorm:"type:json"`
-	ServiceAccounts          json.RawMessage `json:"serviceAccounts" gorm:"column:service_accounts;type:json"`
-	Scheduling               json.RawMessage `json:"scheduling" gorm:"type:json"`
-	CpuPlatform              string          `json:"cpuPlatform" gorm:"column:cpu_platform"`
-	MinCpuPlatform           string          `json:"minCpuPlatform" gorm:"column:min_cpu_platform"`
-	GuestAccelerators        json.RawMessage `json:"guestAccelerators" gorm:"column:guest_accelerators;type:json"`
-	ShieldedInstanceConfig   json.RawMessage `json:"shieldedInstanceConfig" gorm:"column:shielded_instance_config;type:json"`
-	ConfidentialInstanceConfig json.RawMessage `json:"confidentialInstanceConfig" gorm:"column:confidential_instance_config;type:json"`
-	DisplayDevice            json.RawMessage `json:"displayDevice" gorm:"column:display_device;type:json"`
-	KeyRevocationActionType  string          `json:"keyRevocationActionType" gorm:"column:key_revocation_action_type"`
-	SourceMachineImage       string          `json:"sourceMachineImage" gorm:"column:source_machine_image"`
-	ResourcePolicies         json.RawMessage `json:"resourcePolicies" gorm:"column:resource_policies;type:json"`
-	ReservationAffinity      json.RawMessage `json:"reservationAffinity" gorm:"column:reservation_affinity;type:json"`
-	AdvancedMachineFeatures  json.RawMessage `json:"advancedMachineFeatures" gorm:"column:advanced_machine_features;type:json"`
-	Fingerprint              string          `json:"fingerprint"`
-	LastStartTimestamp       time.Time       `json:"lastStartTimestamp" gorm:"column:last_start_timestamp"`
-	LastStopTimestamp        time.Time       `json:"lastStopTimestamp" gorm:"column:last_stop_timestamp"`
-	LastSuspendedTimestamp   time.Time       `json:"lastSuspendedTimestamp" gorm:"column:last_suspended_timestamp"`
-	SatisfiesPzs             bool            `json:"satisfiesPzs" gorm:"column:satisfies_pzs"`
-	Hostname                 string          `json:"hostname"`
-	InstanceEncryptionKey    json.RawMessage `json:"instanceEncryptionKey" gorm:"column:instance_encryption_key;type:json"`
-	PrivateIpv6GoogleAccess  string          `json:"privateIpv6GoogleAccess" gorm:"column:private_ipv6_google_access"`
+	CqSyncTime                              time.Time       `json:"-" gorm:"column:_cq_sync_time"`
+	CqSourceName                            string          `json:"-" gorm:"column:_cq_source_name"`
+	CqID                                    string          `json:"-" gorm:"column:_cq_id;primarykey"`
+	CqParentID                              string          `json:"-" gorm:"column:_cq_parent_id"`
+	ProjectID                               string          `json:"projectId" gorm:"column:project_id;index"`
+	AdvancedMachineFeatures                 json.RawMessage `json:"-" gorm:"column:advanced_machine_features;type:json"`
+	CanIpForward                            *bool           `json:"-" gorm:"column:can_ip_forward"`
+	ConfidentialInstanceConfig              json.RawMessage `json:"-" gorm:"column:confidential_instance_config;type:json"`
+	CpuPlatform                             string          `json:"-" gorm:"column:cpu_platform"`
+	CreationTimestamp                       string          `json:"-" gorm:"column:creation_timestamp"`
+	DeletionProtection                      *bool           `json:"-" gorm:"column:deletion_protection"`
+	Description                             string          `json:"-" gorm:"column:description"`
+	Disks                                   json.RawMessage `json:"-" gorm:"column:disks;type:json"`
+	DisplayDevice                           json.RawMessage `json:"-" gorm:"column:display_device;type:json"`
+	Fingerprint                             string          `json:"-" gorm:"column:fingerprint"`
+	GuestAccelerators                       json.RawMessage `json:"-" gorm:"column:guest_accelerators;type:json"`
+	Hostname                                string          `json:"-" gorm:"column:hostname"`
+	ID                                     *int64          `json:"-" gorm:"column:id"`
+	InstanceEncryptionKey                   json.RawMessage `json:"-" gorm:"column:instance_encryption_key;type:json"`
+	KeyRevocationActionType                 string          `json:"-" gorm:"column:key_revocation_action_type"`
+	Kind                                    string          `json:"-" gorm:"column:kind"`
+	LabelFingerprint                        string          `json:"-" gorm:"column:label_fingerprint"`
+	Labels                                  json.RawMessage `json:"labels" gorm:"type:json"`
+	LastStartTimestamp                      string          `json:"-" gorm:"column:last_start_timestamp"`
+	LastStopTimestamp                       string          `json:"-" gorm:"column:last_stop_timestamp"`
+	LastSuspendedTimestamp                  string          `json:"-" gorm:"column:last_suspended_timestamp"`
+	MachineType                             string          `json:"machineType" gorm:"column:machine_type"`
+	Metadata                                json.RawMessage `json:"metadata" gorm:"type:json"`
+	MinCpuPlatform                          string          `json:"-" gorm:"column:min_cpu_platform"`
+	Name                                    string          `json:"name"`
+	NetworkInterfaces                       json.RawMessage `json:"-" gorm:"column:network_interfaces;type:json"`
+	NetworkPerformanceConfig                json.RawMessage `json:"-" gorm:"column:network_performance_config;type:json"`
+	Params                                  json.RawMessage `json:"-" gorm:"column:params;type:json"`
+	PrivateIpv6GoogleAccess                 string          `json:"-" gorm:"column:private_ipv6_google_access"`
+	ReservationAffinity                     json.RawMessage `json:"-" gorm:"column:reservation_affinity;type:json"`
+	ResourcePolicies                        []string        `json:"-" gorm:"column:resource_policies;type:text[]"`
+	ResourceStatus                          json.RawMessage `json:"-" gorm:"column:resource_status;type:json"`
+	SatisfiesPzs                            *bool           `json:"-" gorm:"column:satisfies_pzs"`
+	Scheduling                              json.RawMessage `json:"-" gorm:"column:scheduling;type:json"`
+	SelfLink                                string          `json:"selfLink" gorm:"column:self_link;primarykey"`
+	ServiceAccounts                         json.RawMessage `json:"-" gorm:"column:service_accounts;type:json"`
+	ShieldedInstanceConfig                  json.RawMessage `json:"-" gorm:"column:shielded_instance_config;type:json"`
+	ShieldedInstanceIntegrityPolicy         json.RawMessage `json:"-" gorm:"column:shielded_instance_integrity_policy;type:json"`
+	SourceMachineImage                      string          `json:"-" gorm:"column:source_machine_image"`
+	SourceMachineImageEncryptionKey         json.RawMessage `json:"-" gorm:"column:source_machine_image_encryption_key;type:json"`
+	StartRestricted                         *bool           `json:"-" gorm:"column:start_restricted"`
+	Status                                  string          `json:"status"`
+	StatusMessage                           string          `json:"-" gorm:"column:status_message"`
+	Tags                                    json.RawMessage `json:"tags" gorm:"type:json"`
+	Zone                                    string          `json:"zone"`
+	CreatedAt                               time.Time       `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt                               time.Time       `json:"updatedAt" gorm:"column:updated_at"`
+	DeletedAt                               gorm.DeletedAt  `json:"-" gorm:"column:deleted_at;index"`
+	InstanceTypeAlt                         string          `json:"instanceTypeAlt" gorm:"column:instance_type_alt"`
 }
 
 // TableName returns the table name for GCPComputeInstance
