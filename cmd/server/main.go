@@ -15,9 +15,9 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 )
 
-// @title Golang Service API
-// @version 1.0
-// @description RESTful API service with Azure Entra ID authentication
+// @title Cloud Inventory API
+// @version 1.0.0
+// @description API for retrieving unified virtual machine (VM) data across AWS EC2, GCP Compute, and Azure VMs, with detailed cloud-specific fields and flexible filtering
 // @host localhost:8080
 // @BasePath /api/v1
 // @securityDefinitions.apikey BearerAuth
@@ -64,6 +64,9 @@ func main() {
 		api.GET("/users/:id", h.GetUser)
 		api.PUT("/users/:id", h.UpdateUser)
 		api.DELETE("/users/:id", h.DeleteUser)
+
+		// VM management endpoints
+		api.GET("/vms", h.GetVMs)
 	}
 
 	// Swagger documentation

@@ -50,6 +50,9 @@ dev-setup:
 	go mod download
 	@echo "Please update .env file with your actual configuration values"
 
+seed:
+	go run scripts/seed_vms.go
+
 # Linting
 lint:
 	golangci-lint run
@@ -76,6 +79,7 @@ help:
 	@echo "  k8s-deploy         - Deploy to Kubernetes"
 	@echo "  k8s-undeploy       - Remove from Kubernetes"
 	@echo "  dev-setup          - Setup development environment"
+	@echo "  seed               - Seed database with sample VM data"
 	@echo "  lint               - Run linter"
 	@echo "  fmt                - Format code"
 	@echo "  check              - Run all checks"
