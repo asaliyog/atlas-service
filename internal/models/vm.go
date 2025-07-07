@@ -237,18 +237,22 @@ type VMFilter struct {
 func (f VMFilter) ValidateFilter() error {
 	// Validate operator
 	validOperators := map[string]bool{
-		"eq":      true,
-		"ne":      true,
-		"lt":      true,
-		"lte":     true,
-		"gt":      true,
-		"gte":     true,
-		"in":      true,
-		"nin":     true,
-		"like":    true,
-		"ilike":   true,
-		"between": true,
-		"null":    true,
+		"eq":           true,
+		"ne":           true,
+		"lt":           true,
+		"lte":          true,
+		"gt":           true,
+		"gte":          true,
+		"in":           true,
+		"not_in":       true,
+		"contains":     true,
+		"starts_with":  true,
+		"ends_with":    true,
+		"like":         true,
+		"ilike":        true,
+		"between":      true,
+		"is_null":      true,
+		"is_not_null":  true,
 	}
 
 	if !validOperators[f.Operator] {
@@ -262,7 +266,7 @@ func (f VMFilter) ValidateFilter() error {
 
 	// Validate value based on operator
 	switch f.Operator {
-	case "in", "nin":
+	case "in", "not_in":
 		// Value should be a slice
 		if f.Value == nil {
 			return fmt.Errorf("value cannot be nil for operator %s", f.Operator)
@@ -292,15 +296,10 @@ func (f VMFilter) ValidateFilter() error {
 		if !areComparableTypes(first, second) {
 			return fmt.Errorf("between values must be of comparable types")
 		}
-	case "null":
-		// Value should be a boolean indicating whether to check for null or not null
-		if f.Value == nil {
-			return fmt.Errorf("value cannot be nil for operator %s", f.Operator)
-		}
-		if _, ok := f.Value.(bool); !ok {
-			return fmt.Errorf("value must be a boolean for operator %s", f.Operator)
-		}
-	case "like", "ilike":
+	case "is_null", "is_not_null":
+		// These operators don't need a value
+		// Value can be nil or any value, it will be ignored
+	case "contains", "starts_with", "ends_with", "like", "ilike":
 		// Value should be a string
 		if f.Value == nil {
 			return fmt.Errorf("value cannot be nil for operator %s", f.Operator)

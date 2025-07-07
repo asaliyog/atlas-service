@@ -1,295 +1,124 @@
 package handlers
 
 import (
-	"net/http"
-	"strconv"
-	"strings"
-
 	"golang-service/internal/models"
+	"golang-service/internal/utils"
+	"fmt"
+	"net/http"
+	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-// Handler holds dependencies for handlers
-type Handler struct {
+// UsersHandler handles user-related HTTP requests
+type UsersHandler struct {
 	db *gorm.DB
 }
 
-// New creates a new handler instance
-func New(db *gorm.DB) *Handler {
-	return &Handler{db: db}
+// NewUsersHandler creates a new users handler
+func NewUsersHandler(db *gorm.DB) *UsersHandler {
+	return &UsersHandler{db: db}
 }
 
-// PaginatedResponse represents a paginated response
-type PaginatedResponse struct {
-	Data       interface{} `json:"data"`
-	Page       int         `json:"page"`
-	PerPage    int         `json:"per_page"`
-	Total      int64       `json:"total"`
-	TotalPages int         `json:"total_pages"`
-}
-
-// GetUsers godoc
-// @Summary Get all users
-// @Description Get a paginated list of all users with optional filtering
-// @Tags users
-// @Security BearerAuth
-// @Produce json
-// @Param page query int false "Page number (default: 1)"
-// @Param per_page query int false "Items per page (default: 10, max: 100)"
-// @Param search query string false "Search by name or email"
-// @Param active query bool false "Filter by active status"
-// @Success 200 {object} PaginatedResponse
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users [get]
-func (h *Handler) GetUsers(c *gin.Context) {
-	// Parse pagination parameters
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
-	
-	// Validate and limit pagination
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 {
-		perPage = 10
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
-	
-	// Build query
-	query := h.db.Model(&models.User{})
-	
-	// Apply search filter
-	if search := c.Query("search"); search != "" {
-		searchPattern := "%" + strings.ToLower(search) + "%"
-		query = query.Where("LOWER(name) LIKE ? OR LOWER(email) LIKE ?", searchPattern, searchPattern)
-	}
-	
-	// Apply active filter
-	if activeStr := c.Query("active"); activeStr != "" {
-		if active, err := strconv.ParseBool(activeStr); err == nil {
-			query = query.Where("is_active = ?", active)
-		}
-	}
-	
-	// Get total count
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count users"})
+// GetUsers handles GET /api/v1/users
+func (h *UsersHandler) GetUsers(c *gin.Context) {
+	// Parse query parameters using the reusable utility
+	params, err := utils.ParseQueryParams(c)
+	if err != nil {
+		utils.SendErrorResponse(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	
-	// Apply pagination
-	offset := (page - 1) * perPage
+
+	// Validate query parameters
+	if err := utils.ValidateQueryParams(params); err != nil {
+		utils.SendErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Get users from database
 	var users []models.User
-	if err := query.Offset(offset).Limit(perPage).Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+	if err := h.db.Find(&users).Error; err != nil {
+		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users")
 		return
 	}
-	
-	// Calculate total pages
-	totalPages := int(total) / perPage
-	if int(total)%perPage != 0 {
-		totalPages++
-	}
-	
-	response := PaginatedResponse{
-		Data:       users,
-		Page:       page,
-		PerPage:    perPage,
-		Total:      total,
-		TotalPages: totalPages,
-	}
 
-	c.JSON(http.StatusOK, response)
+	// Apply filters using the reusable utility
+	filteredUsers := utils.ApplyInMemoryFilters(users, params.Filters, h.extractUserField)
+
+	// Apply sorting
+	sortedUsers := h.applySorting(filteredUsers, params.SortBy, params.SortOrder)
+
+	// Calculate pagination
+	totalItems := len(sortedUsers)
+	paginatedUsers := utils.ApplyPagination(sortedUsers, params.Page, params.PageSize)
+
+	// Send response using the reusable utility
+	utils.SendPaginatedResponse(c, paginatedUsers, params.Page, params.PageSize, totalItems)
 }
 
-// GetUser godoc
-// @Summary Get user by ID
-// @Description Get a single user by their ID
-// @Tags users
-// @Security BearerAuth
-// @Produce json
-// @Param id path int true "User ID"
-// @Success 200 {object} models.User
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/{id} [get]
-func (h *Handler) GetUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
+// extractUserField extracts field value from User struct for filtering
+func (h *UsersHandler) extractUserField(user models.User, field string) interface{} {
+	v := reflect.ValueOf(user)
+	t := v.Type()
 
-	var user models.User
-	if err := h.db.First(&user, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
+	for i := 0; i < v.NumField(); i++ {
+		fieldType := t.Field(i)
+		fieldValue := v.Field(i)
+
+		// Check JSON tag first, then field name
+		jsonTag := fieldType.Tag.Get("json")
+		if jsonTag != "" {
+			jsonField := strings.Split(jsonTag, ",")[0]
+			if jsonField == field {
+				return fieldValue.Interface()
+			}
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
-		return
+
+		// Check field name
+		if strings.EqualFold(fieldType.Name, field) {
+			return fieldValue.Interface()
+		}
 	}
 
-	c.JSON(http.StatusOK, user)
+	return nil
 }
 
-// CreateUser godoc
-// @Summary Create a new user
-// @Description Create a new user with the provided information
-// @Tags users
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param user body models.CreateUserRequest true "User information"
-// @Success 201 {object} models.User
-// @Failure 400 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users [post]
-func (h *Handler) CreateUser(c *gin.Context) {
-	var req models.CreateUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+// applySorting applies sorting to users
+func (h *UsersHandler) applySorting(users []models.User, sortBy, sortOrder string) []models.User {
+	if sortBy == "" {
+		return users
 	}
 
-	// Check if user already exists
-	var existingUser models.User
-	if err := h.db.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
-		return
-	}
+	sortedUsers := make([]models.User, len(users))
+	copy(sortedUsers, users)
 
-	user := models.User{
-		Email:   req.Email,
-		Name:    req.Name,
-		AzureID: req.AzureID,
-	}
+	sort.Slice(sortedUsers, func(i, j int) bool {
+		valI := h.extractUserField(sortedUsers[i], sortBy)
+		valJ := h.extractUserField(sortedUsers[j], sortBy)
 
-	if err := h.db.Create(&user).Error; err != nil {
-		// Check for unique constraint violation
-		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE constraint") {
-			c.JSON(http.StatusConflict, gin.H{"error": "User with this email or Azure ID already exists"})
-			return
+		// Handle nil values
+		if valI == nil && valJ == nil {
+			return false
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, user)
-}
-
-// UpdateUser godoc
-// @Summary Update user
-// @Description Update an existing user's information
-// @Tags users
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Param user body models.UpdateUserRequest true "Updated user information"
-// @Success 200 {object} models.User
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 409 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/{id} [put]
-func (h *Handler) UpdateUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
-
-	var req models.UpdateUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	var user models.User
-	if err := h.db.First(&user, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
+		if valI == nil {
+			return sortOrder == "asc"
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
-		return
-	}
-
-	// Check for email uniqueness if email is being updated
-	if req.Email != nil && *req.Email != user.Email {
-		var existingUser models.User
-		if err := h.db.Where("email = ? AND id != ?", *req.Email, id).First(&existingUser).Error; err == nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
-			return
+		if valJ == nil {
+			return sortOrder == "desc"
 		}
-	}
 
-	// Update fields if provided
-	if req.Email != nil {
-		user.Email = *req.Email
-	}
-	if req.Name != nil {
-		user.Name = *req.Name
-	}
-	if req.IsActive != nil {
-		user.IsActive = *req.IsActive
-	}
+		// Convert to string for comparison
+		strI := strings.ToLower(fmt.Sprintf("%v", valI))
+		strJ := strings.ToLower(fmt.Sprintf("%v", valJ))
 
-	if err := h.db.Save(&user).Error; err != nil {
-		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE constraint") {
-			c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
-			return
+		if sortOrder == "desc" {
+			return strI > strJ
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
-		return
-	}
+		return strI < strJ
+	})
 
-	c.JSON(http.StatusOK, user)
-}
-
-// DeleteUser godoc
-// @Summary Delete user
-// @Description Delete a user by their ID (soft delete)
-// @Tags users
-// @Security BearerAuth
-// @Param id path int true "User ID"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /users/{id} [delete]
-func (h *Handler) DeleteUser(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
-
-	// Check if user exists
-	var user models.User
-	if err := h.db.First(&user, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
-		return
-	}
-
-	// Soft delete
-	if err := h.db.Delete(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	return sortedUsers
 }

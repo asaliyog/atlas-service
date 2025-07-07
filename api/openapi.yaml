@@ -1,22 +1,90 @@
-openapi: 3.0.3
+openapi: 3.0.0
 info:
-  title: Cloud Inventory API
-  description: API for retrieving unified virtual machine (VM) data across AWS EC2, GCP Compute, and Azure VMs, with detailed cloud-specific fields and flexible filtering.
+  title: Atlas Service API
+  description: |
+    A comprehensive API for managing virtual machines across multiple cloud providers (AWS, Azure, GCP).
+    
+    ## Filtering
+    The API supports standard query parameter filtering:
+    - `field=value` (equals)
+    - `field_ne=value` (not equals)
+    - `field_gt=value` (greater than)
+    - `field_gte=value` (greater than or equal)
+    - `field_lt=value` (less than)
+    - `field_lte=value` (less than or equal)
+    - `field_contains=value` (contains substring)
+    - `field_starts_with=value` (starts with)
+    - `field_ends_with=value` (ends with)
+    - `field_in=value1,value2` (in list)
+    - `field_not_in=value1,value2` (not in list)
+    - `field_is_null` (field is null)
+    - `field_is_not_null` (field is not null)
+    
+    ## Examples
+    - `/api/v1/vms?cloudType=aws`
+    - `/api/v1/vms?status=running&name_contains=web`
+    - `/api/v1/vms?instanceType_in=t2.micro,t2.small`
+    - `/api/v1/vms?createdAt_gte=2024-01-01`
   version: 1.0.0
+  contact:
+    name: API Support
+    email: support@atlas-service.com
 servers:
-  - url: /api/v1
-    description: Main API server
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.atlas-service.com
+    description: Production server
 paths:
-  /vms:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-07-07T17:30:00Z"
+  /api/v1/vms:
     get:
       summary: Retrieve a list of virtual machines
       description: |
-        Fetches a paginated list of virtual machines across AWS EC2, GCP Compute, and Azure VMs. Supports filtering by any field (including nested fields using dot notation, e.g., `cloudSpecificDetails.vpcId`), sorting, and pagination. The `filter` parameter accepts a JSON string of filter objects with `field`, `operator`, and `value`. Supported operators: `eq` (equal), `neq` (not equal), `contains`, `lt` (less than), `gt` (greater than), `le` (less than or equal), `ge` (greater than or equal).
-      operationId: getVMs
+        Fetches a paginated list of virtual machines across AWS EC2, GCP Compute, and Azure VMs.
+        
+        ## Filtering Examples
+        - `cloudType=aws` - Only AWS VMs
+        - `status=running` - Only running VMs
+        - `name_contains=web` - VMs with "web" in the name
+        - `instanceType_in=t2.micro,t2.small` - VMs with specific instance types
+        - `createdAt_gte=2024-01-01` - VMs created after Jan 1, 2024
+        - `cloudType=aws&status=running` - Running AWS VMs only
+        
+        ## Sorting Examples
+        - `sortBy=name&sortOrder=asc` - Sort by name ascending
+        - `sortBy=createdAt&sortOrder=desc` - Sort by creation date descending
+        
+        ## Pagination Examples
+        - `page=1&pageSize=20` - First page with 20 items
+        - `page=2&pageSize=10` - Second page with 10 items
+      tags:
+        - vms
+      security:
+        - BearerAuth: []
       parameters:
         - name: page
           in: query
-          description: Page number for pagination (1-based).
+          description: Page number for pagination (1-based)
           required: false
           schema:
             type: integer
@@ -24,39 +92,143 @@ paths:
             default: 1
         - name: pageSize
           in: query
-          description: Number of VMs per page.
+          description: Number of VMs per page (max 1000)
           required: false
           schema:
             type: integer
             minimum: 1
-            maximum: 100
+            maximum: 1000
             default: 20
         - name: sortBy
           in: query
-          description: Field to sort by (e.g., `id`, `name`, `createdAt`, `cloudAccountId`, `location`, `instanceType`, or nested fields like `cloudSpecificDetails.vpcId`).
+          description: |
+            Field to sort by. Can be any field from the VM response.
+            Examples: `name`, `createdAt`, `status`, `cloudType`, `location`
           required: false
           schema:
             type: string
-            default: id
+            default: createdAt
         - name: sortOrder
           in: query
-          description: Sort order (ascending or descending).
+          description: Sort order (asc or desc)
           required: false
           schema:
             type: string
             enum: [asc, desc]
             default: asc
-        - name: filter
+        # Filter parameters for unified fields
+        - name: cloudType
           in: query
-          description: |
-            A JSON string representing an array of filter objects. Each object has:
-            - `field`: The field to filter on (e.g., `cloudAccountId`, `location`, `cloudSpecificDetails.vpcId`).
-            - `operator`: The matching criterion (`eq`, `neq`, `contains`, `lt`, `gt`, `le`, `ge`).
-            - `value`: The value to match against.
+          description: Filter by cloud provider (aws, azure, gcp)
           required: false
           schema:
             type: string
-          example: '[{"field":"cloudAccountId","operator":"eq","value":"123456789012"},{"field":"name","operator":"contains","value":"web"},{"field":"instanceType","operator":"eq","value":"t2.micro"}]'
+            enum: [aws, azure, gcp]
+        - name: cloudType_ne
+          in: query
+          description: Filter by cloud provider (not equals)
+          required: false
+          schema:
+            type: string
+            enum: [aws, azure, gcp]
+        - name: cloudType_in
+          in: query
+          description: Filter by multiple cloud providers (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "aws,azure"
+        - name: status
+          in: query
+          description: Filter by VM status
+          required: false
+          schema:
+            type: string
+        - name: status_ne
+          in: query
+          description: Filter by VM status (not equals)
+          required: false
+          schema:
+            type: string
+        - name: status_in
+          in: query
+          description: Filter by multiple statuses (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "running,stopped"
+        - name: name
+          in: query
+          description: Filter by VM name (exact match)
+          required: false
+          schema:
+            type: string
+        - name: name_contains
+          in: query
+          description: Filter by VM name (contains substring)
+          required: false
+          schema:
+            type: string
+        - name: name_starts_with
+          in: query
+          description: Filter by VM name (starts with)
+          required: false
+          schema:
+            type: string
+        - name: name_ends_with
+          in: query
+          description: Filter by VM name (ends with)
+          required: false
+          schema:
+            type: string
+        - name: location
+          in: query
+          description: Filter by location/region
+          required: false
+          schema:
+            type: string
+        - name: location_in
+          in: query
+          description: Filter by multiple locations (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "us-east-1,us-west-2"
+        - name: instanceType
+          in: query
+          description: Filter by instance type (exact match)
+          required: false
+          schema:
+            type: string
+        - name: instanceType_in
+          in: query
+          description: Filter by multiple instance types (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "t2.micro,t2.small"
+        - name: cloudAccountId
+          in: query
+          description: Filter by cloud account ID
+          required: false
+          schema:
+            type: string
+        - name: createdAt_gte
+          in: query
+          description: Filter by creation date (greater than or equal)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-01T00:00:00Z"
+        - name: createdAt_lte
+          in: query
+          description: Filter by creation date (less than or equal)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-12-31T23:59:59Z"
       responses:
         '200':
           description: Successful response with a list of VMs
@@ -64,6 +236,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VMListResponse'
+              examples:
+                all_vms:
+                  summary: All VMs
+                  value:
+                    data:
+                      - id: "i-1234567890abcdef0"
+                        name: "web-server-01"
+                        cloudType: "aws"
+                        status: "running"
+                        createdAt: "2025-07-07T16:54:43Z"
+                        cloudAccountId: "123456789012"
+                        location: "us-east-1a"
+                        instanceType: "t2.micro"
+                    pagination:
+                      page: 1
+                      pageSize: 20
+                      totalItems: 30
+                      totalPages: 2
+                aws_vms:
+                  summary: AWS VMs only
+                  description: Example with cloudType=aws filter
+                  value:
+                    data:
+                      - id: "i-1234567890abcdef0"
+                        name: "web-server-01"
+                        cloudType: "aws"
+                        status: "running"
+                        createdAt: "2025-07-07T16:54:43Z"
+                        cloudAccountId: "123456789012"
+                        location: "us-east-1a"
+                        instanceType: "t2.micro"
+                    pagination:
+                      page: 1
+                      pageSize: 20
+                      totalItems: 10
+                      totalPages: 1
         '400':
           description: Invalid request parameters
           content:
