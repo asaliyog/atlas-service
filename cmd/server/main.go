@@ -56,17 +56,14 @@ func main() {
 	api.Use(middleware.AzureEntraAuth(cfg))
 	{
 		// Initialize handlers
-		h := handlers.New(db)
+		usersHandler := handlers.NewUsersHandler(db)
+		vmsHandler := handlers.NewVMsHandler(db)
 
 		// User management endpoints
-		api.GET("/users", h.GetUsers)
-		api.POST("/users", h.CreateUser)
-		api.GET("/users/:id", h.GetUser)
-		api.PUT("/users/:id", h.UpdateUser)
-		api.DELETE("/users/:id", h.DeleteUser)
+		api.GET("/users", usersHandler.GetUsers)
 
 		// VM management endpoints
-		api.GET("/vms", h.GetVMs)
+		api.GET("/vms", vmsHandler.GetVMs)
 	}
 
 	// Swagger documentation
