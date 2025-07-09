@@ -1,13 +1,17 @@
 package handlers
 
 import (
+	"context"
+	"golang-service/internal/cache"
 	"golang-service/internal/models"
 	"golang-service/internal/utils"
 	"fmt"
+	"log"
 	"net/http"
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -15,12 +19,13 @@ import (
 
 // VMsHandler handles VM-related HTTP requests
 type VMsHandler struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *cache.RedisCache
 }
 
 // NewVMsHandler creates a new VMs handler
-func NewVMsHandler(db *gorm.DB) *VMsHandler {
-	return &VMsHandler{db: db}
+func NewVMsHandler(db *gorm.DB, cache *cache.RedisCache) *VMsHandler {
+	return &VMsHandler{db: db, cache: cache}
 }
 
 // GetVMs handles GET /api/v1/vms
@@ -38,15 +43,39 @@ func (h *VMsHandler) GetVMs(c *gin.Context) {
 		return
 	}
 
-	// Get VMs from database
-	var vms []models.VM
-	if err := h.db.Find(&vms).Error; err != nil {
-		utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch VMs")
-		return
+	// Try to get VMs from cache first (if Redis is available)
+	var cachedVMs []models.VM
+	if h.cache != nil {
+		ctx := context.Background()
+		cachedVMs, err = h.cache.GetVMs(ctx)
+		if err != nil {
+			log.Printf("Cache error: %v", err)
+		}
+	}
+
+	// If cache miss or Redis unavailable, fetch from database and cache the result
+	if cachedVMs == nil {
+		log.Println("Cache miss or Redis unavailable - fetching VMs from database")
+		cachedVMs, err = h.fetchVMsFromDatabase()
+		if err != nil {
+			utils.SendErrorResponse(c, http.StatusInternalServerError, "Failed to fetch VMs")
+			return
+		}
+
+		// Cache the result (async) if Redis is available
+		if h.cache != nil {
+			go func() {
+				if err := h.cache.SetVMs(context.Background(), cachedVMs); err != nil {
+					log.Printf("Failed to cache VMs: %v", err)
+				}
+			}()
+		}
+	} else {
+		log.Println("Cache hit - using cached VMs")
 	}
 
 	// Apply filters
-	filteredVMs := h.applyFilters(vms, params.Filters)
+	filteredVMs := h.applyFilters(cachedVMs, params.Filters)
 
 	// Apply sorting
 	sortedVMs := h.applySorting(filteredVMs, params.SortBy, params.SortOrder)
@@ -173,4 +202,124 @@ func (h *VMsHandler) applySorting(vms []models.VM, sortBy, sortOrder string) []m
 	})
 
 	return sortedVMs
+}
+
+// fetchVMsFromDatabase fetches VMs from all cloud provider tables in parallel
+func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
+	var allVMs []models.VM
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	var errors []error
+
+	// Fetch from AWS VMs
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var awsVMs []models.AWSEC2Instance
+		if err := h.db.Find(&awsVMs).Error; err != nil {
+			mu.Lock()
+			errors = append(errors, fmt.Errorf("failed to fetch AWS VMs: %w", err))
+			mu.Unlock()
+			return
+		}
+
+		// Convert AWS VMs to unified VM format
+		for _, awsVM := range awsVMs {
+			vm := models.VM{
+				ID:                   awsVM.ARN,
+				Name:                 awsVM.Name,
+				CloudType:            "aws",
+				Status:               awsVM.Status,
+				CreatedAt:            awsVM.CreatedAt,
+				UpdatedAt:            awsVM.UpdatedAt,
+				CloudAccountID:       awsVM.AccountID,
+				Location:             awsVM.Region,
+				InstanceType:         awsVM.InstanceTypeAlt,
+				CloudSpecificDetails: nil, // Could store additional AWS-specific data here
+			}
+			mu.Lock()
+			allVMs = append(allVMs, vm)
+			mu.Unlock()
+		}
+	}()
+
+	// Fetch from Azure VMs
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var azureVMs []models.AzureVMInstance
+		if err := h.db.Find(&azureVMs).Error; err != nil {
+			mu.Lock()
+			errors = append(errors, fmt.Errorf("failed to fetch Azure VMs: %w", err))
+			mu.Unlock()
+			return
+		}
+
+		// Convert Azure VMs to unified VM format
+		for _, azureVM := range azureVMs {
+			vm := models.VM{
+				ID:                   azureVM.ID,
+				Name:                 azureVM.Name,
+				CloudType:            "azure",
+				Status:               azureVM.Status,
+				CreatedAt:            azureVM.CreatedAt,
+				UpdatedAt:            azureVM.UpdatedAt,
+				CloudAccountID:       azureVM.SubscriptionID,
+				Location:             azureVM.Location,
+				InstanceType:         azureVM.InstanceTypeAlt,
+				CloudSpecificDetails: nil, // Could store additional Azure-specific data here
+			}
+			mu.Lock()
+			allVMs = append(allVMs, vm)
+			mu.Unlock()
+		}
+	}()
+
+	// Fetch from GCP VMs
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var gcpVMs []models.GCPComputeInstance
+		if err := h.db.Find(&gcpVMs).Error; err != nil {
+			mu.Lock()
+			errors = append(errors, fmt.Errorf("failed to fetch GCP VMs: %w", err))
+			mu.Unlock()
+			return
+		}
+
+		// Convert GCP VMs to unified VM format
+		for _, gcpVM := range gcpVMs {
+			vm := models.VM{
+				ID:                   gcpVM.SelfLink,
+				Name:                 gcpVM.Name,
+				CloudType:            "gcp",
+				Status:               gcpVM.Status,
+				CreatedAt:            gcpVM.CreatedAt,
+				UpdatedAt:            gcpVM.UpdatedAt,
+				CloudAccountID:       gcpVM.ProjectID,
+				Location:             gcpVM.Zone, // Using zone as location
+				InstanceType:         gcpVM.MachineType,
+				CloudSpecificDetails: nil, // Could store additional GCP-specific data here
+			}
+			mu.Lock()
+			allVMs = append(allVMs, vm)
+			mu.Unlock()
+		}
+	}()
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+
+	// Check for errors
+	if len(errors) > 0 {
+		return nil, fmt.Errorf("errors fetching VMs: %v", errors)
+	}
+
+	log.Printf("Fetched %d VMs from database (AWS: %d, Azure: %d, GCP: %d)", 
+		len(allVMs), 
+		len(allVMs)/3, // Rough estimate
+		len(allVMs)/3, 
+		len(allVMs)/3)
+
+	return allVMs, nil
 }
