@@ -7,21 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
-
-// BaseVM represents common fields across all cloud providers
-type BaseVM struct {
-	ID            string         `json:"id" gorm:"primarykey"`
-	Name          string         `json:"name"`
-	Status        string         `json:"status"`
-	CreatedAt     time.Time      `json:"createdAt"`
-	UpdatedAt     time.Time      `json:"updatedAt"`
-	DeletedAt     gorm.DeletedAt `json:"-" gorm:"index"`
-	Location      string         `json:"location" gorm:"index"`
-	InstanceType  string         `json:"instanceType" gorm:"column:instance_type"`
-}
 
 // AWSEC2Instance represents AWS EC2 instances
 type AWSEC2Instance struct {
@@ -90,13 +76,6 @@ type AWSEC2Instance struct {
 	UsageOperationUpdateTime                *time.Time      `json:"-" gorm:"column:usage_operation_update_time"`
 	VirtualizationType                      string          `json:"virtualizationType" gorm:"column:virtualization_type"`
 	VpcID                                   string          `json:"vpcId" gorm:"column:vpc_id"`
-	CreatedAt                               time.Time       `json:"createdAt" gorm:"column:created_at"`
-	UpdatedAt                               time.Time       `json:"updatedAt" gorm:"column:updated_at"`
-	DeletedAt                               gorm.DeletedAt  `json:"-" gorm:"column:deleted_at;index"`
-	Name                                    string          `json:"name"`
-	Status                                  string          `json:"status"`
-	Location                                string          `json:"location"`
-	InstanceTypeAlt                         string          `json:"instanceTypeAlt" gorm:"column:instance_type_alt"`
 }
 
 // TableName returns the table name for AWSEC2Instance
@@ -123,11 +102,6 @@ type AzureVMInstance struct {
 	Name              string          `json:"name"`
 	Resources         json.RawMessage `json:"-" gorm:"column:resources;type:json"`
 	Type              string          `json:"-" gorm:"column:type"`
-	CreatedAt         time.Time       `json:"createdAt" gorm:"column:created_at"`
-	UpdatedAt         time.Time       `json:"updatedAt" gorm:"column:updated_at"`
-	DeletedAt         gorm.DeletedAt  `json:"-" gorm:"column:deleted_at;index"`
-	Status            string          `json:"status"`
-	InstanceTypeAlt   string          `json:"instanceTypeAlt" gorm:"column:instance_type_alt"`
 }
 
 // TableName returns the table name for AzureVMInstance
@@ -187,10 +161,6 @@ type GCPComputeInstance struct {
 	StatusMessage                           string          `json:"-" gorm:"column:status_message"`
 	Tags                                    json.RawMessage `json:"tags" gorm:"type:json"`
 	Zone                                    string          `json:"zone"`
-	CreatedAt                               time.Time       `json:"createdAt" gorm:"column:created_at"`
-	UpdatedAt                               time.Time       `json:"updatedAt" gorm:"column:updated_at"`
-	DeletedAt                               gorm.DeletedAt  `json:"-" gorm:"column:deleted_at;index"`
-	InstanceTypeAlt                         string          `json:"instanceTypeAlt" gorm:"column:instance_type_alt"`
 }
 
 // TableName returns the table name for GCPComputeInstance
@@ -198,14 +168,12 @@ func (GCPComputeInstance) TableName() string {
 	return "gcp_compute_instances"
 }
 
-// VM represents a unified virtual machine view across cloud providers
+// VM represents unified VM data across all cloud providers
 type VM struct {
 	ID                   string                 `json:"id"`
 	Name                 string                 `json:"name"`
 	CloudType            string                 `json:"cloudType"`
 	Status               string                 `json:"status"`
-	CreatedAt            time.Time              `json:"createdAt"`
-	UpdatedAt            time.Time              `json:"updatedAt"`
 	CloudAccountID       string                 `json:"cloudAccountId"`
 	Location             string                 `json:"location"`
 	InstanceType         string                 `json:"instanceType"`
@@ -214,7 +182,7 @@ type VM struct {
 	Env                  string                 `json:"env,omitempty"`
 }
 
-// EnvironmentInfo represents resolved environment information
+// EnvironmentInfo represents environment information
 type EnvironmentInfo struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -222,7 +190,7 @@ type EnvironmentInfo struct {
 	Tags        []string `json:"tags,omitempty"`
 }
 
-// VMListResponse represents the response for VM list endpoint
+// VMListResponse represents the response structure for VM list endpoints
 type VMListResponse struct {
 	Data       []VM       `json:"data"`
 	Pagination Pagination `json:"pagination"`
@@ -243,135 +211,105 @@ type VMFilter struct {
 	Value    interface{} `json:"value"`
 }
 
-// ValidateFilter validates a VMFilter for type safety and operator support
+// ValidateFilter validates the filter
 func (f VMFilter) ValidateFilter() error {
-	// Validate operator
-	validOperators := map[string]bool{
-		"eq":           true,
-		"ne":           true,
-		"lt":           true,
-		"lte":          true,
-		"gt":           true,
-		"gte":          true,
-		"in":           true,
-		"not_in":       true,
-		"contains":     true,
-		"starts_with":  true,
-		"ends_with":    true,
-		"like":         true,
-		"ilike":        true,
-		"between":      true,
-		"is_null":      true,
-		"is_not_null":  true,
-	}
-
-	if !validOperators[f.Operator] {
-		return fmt.Errorf("unsupported operator: %s", f.Operator)
-	}
-
-	// Validate field
 	if f.Field == "" {
-		return fmt.Errorf("field cannot be empty")
+		return fmt.Errorf("field is required")
+	}
+
+	if f.Operator == "" {
+		return fmt.Errorf("operator is required")
+	}
+
+	// Validate operator
+	validOperators := []string{"eq", "ne", "gt", "gte", "lt", "lte", "in", "not_in", "contains", "not_contains", "starts_with", "ends_with"}
+	isValidOperator := false
+	for _, op := range validOperators {
+		if f.Operator == op {
+			isValidOperator = true
+			break
+		}
+	}
+
+	if !isValidOperator {
+		return fmt.Errorf("invalid operator: %s. Valid operators are: %v", f.Operator, validOperators)
 	}
 
 	// Validate value based on operator
-	switch f.Operator {
-	case "in", "not_in":
-		// Value should be a slice
+	if f.Operator == "in" || f.Operator == "not_in" {
 		if f.Value == nil {
-			return fmt.Errorf("value cannot be nil for operator %s", f.Operator)
+			return fmt.Errorf("value is required for operator: %s", f.Operator)
 		}
-		v := reflect.ValueOf(f.Value)
-		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-			return fmt.Errorf("value must be an array for operator %s", f.Operator)
+
+		// Check if value is a slice
+		valueType := reflect.TypeOf(f.Value)
+		if valueType.Kind() != reflect.Slice && valueType.Kind() != reflect.Array {
+			return fmt.Errorf("value must be a slice/array for operator: %s", f.Operator)
 		}
-		if v.Len() == 0 {
-			return fmt.Errorf("value array cannot be empty for operator %s", f.Operator)
+
+		// Check if slice is not empty
+		valueValue := reflect.ValueOf(f.Value)
+		if valueValue.Len() == 0 {
+			return fmt.Errorf("value slice cannot be empty for operator: %s", f.Operator)
 		}
-	case "between":
-		// Value should be an array with exactly 2 elements
+	} else {
 		if f.Value == nil {
-			return fmt.Errorf("value cannot be nil for operator %s", f.Operator)
-		}
-		v := reflect.ValueOf(f.Value)
-		if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-			return fmt.Errorf("value must be an array for operator %s", f.Operator)
-		}
-		if v.Len() != 2 {
-			return fmt.Errorf("value array must have exactly 2 elements for operator %s", f.Operator)
-		}
-		// Check that both values are of the same type
-		first := v.Index(0).Interface()
-		second := v.Index(1).Interface()
-		if !areComparableTypes(first, second) {
-			return fmt.Errorf("between values must be of comparable types")
-		}
-	case "is_null", "is_not_null":
-		// These operators don't need a value
-		// Value can be nil or any value, it will be ignored
-	case "contains", "starts_with", "ends_with", "like", "ilike":
-		// Value should be a string
-		if f.Value == nil {
-			return fmt.Errorf("value cannot be nil for operator %s", f.Operator)
-		}
-		if _, ok := f.Value.(string); !ok {
-			return fmt.Errorf("value must be a string for operator %s", f.Operator)
-		}
-	case "lt", "lte", "gt", "gte":
-		// Value should be a comparable type (number, string, time)
-		if f.Value == nil {
-			return fmt.Errorf("value cannot be nil for operator %s", f.Operator)
-		}
-		if !isComparableType(f.Value) {
-			return fmt.Errorf("value must be a comparable type (number, string, time) for operator %s", f.Operator)
+			return fmt.Errorf("value is required for operator: %s", f.Operator)
 		}
 	}
 
 	return nil
 }
 
-// areComparableTypes checks if two values are of comparable types
+// areComparableTypes checks if two types can be compared
 func areComparableTypes(a, b interface{}) bool {
-	typeA := reflect.TypeOf(a)
-	typeB := reflect.TypeOf(b)
-	
-	// Same type
-	if typeA == typeB {
+	if a == nil || b == nil {
+		return true // nil can be compared with anything
+	}
+
+	// Convert to comparable types
+	aType := reflect.TypeOf(a)
+	bType := reflect.TypeOf(b)
+
+	// If types are the same, they're comparable
+	if aType == bType {
 		return true
 	}
-	
-	// Both are numeric
-	if isNumericType(typeA) && isNumericType(typeB) {
-		return true
-	}
-	
-	return false
+
+	// Check if both are numeric types
+	return isNumericType(aType) && isNumericType(bType)
 }
 
-// isComparableType checks if a type is comparable for ordering operations
+// isComparableType checks if a type can be used in comparisons
 func isComparableType(value interface{}) bool {
-	switch value.(type) {
-	case int, int8, int16, int32, int64,
-		 uint, uint8, uint16, uint32, uint64,
-		 float32, float64,
-		 string, time.Time:
+	if value == nil {
 		return true
 	}
-	return false
+
+	valueType := reflect.TypeOf(value)
+	switch valueType.Kind() {
+	case reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64, reflect.Bool:
+		return true
+	default:
+		return false
+	}
 }
 
 // isNumericType checks if a type is numeric
 func isNumericType(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		 reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		 reflect.Float32, reflect.Float64:
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
-// VMQueryParams represents the query parameters for VM endpoints
+// VMQueryParams represents query parameters for VM endpoints
 type VMQueryParams struct {
 	Page      int        `json:"page"`
 	PageSize  int        `json:"pageSize"`
@@ -382,28 +320,22 @@ type VMQueryParams struct {
 
 // ValidateQueryParams validates the query parameters
 func (p VMQueryParams) ValidateQueryParams() error {
-	// Validate page
 	if p.Page < 1 {
 		return fmt.Errorf("page must be greater than 0")
 	}
 
-	// Validate page size
-	if p.PageSize < 1 {
-		return fmt.Errorf("pageSize must be greater than 0")
-	}
-	if p.PageSize > 1000 {
-		return fmt.Errorf("pageSize cannot exceed 1000")
+	if p.PageSize < 1 || p.PageSize > 1000 {
+		return fmt.Errorf("pageSize must be between 1 and 1000")
 	}
 
-	// Validate sort order
 	if p.SortOrder != "" && p.SortOrder != "asc" && p.SortOrder != "desc" {
 		return fmt.Errorf("sortOrder must be 'asc' or 'desc'")
 	}
 
 	// Validate filters
-	for i, filter := range p.Filters {
+	for _, filter := range p.Filters {
 		if err := filter.ValidateFilter(); err != nil {
-			return fmt.Errorf("filter %d: %w", i, err)
+			return fmt.Errorf("invalid filter: %w", err)
 		}
 	}
 
@@ -417,30 +349,23 @@ type Error struct {
 	Details string `json:"details,omitempty"`
 }
 
-// ConvertToValue converts interface{} to appropriate type for database queries
-func ConvertToValue(value interface{}) (interface{}, error) {
-	if value == nil {
-		return nil, nil
-	}
-
-	switch v := value.(type) {
-	case string:
-		// Try to convert string to number if it looks like a number
-		if intVal, err := strconv.Atoi(v); err == nil {
-			return intVal, nil
-		}
-		if floatVal, err := strconv.ParseFloat(v, 64); err == nil {
-			return floatVal, nil
-		}
-		return v, nil
-	case float64:
-		// JSON unmarshaling often converts numbers to float64
-		if v == float64(int64(v)) {
-			return int64(v), nil
-		}
-		return v, nil
+// ConvertToValue converts a string value to the appropriate type
+func ConvertToValue(value string, fieldType string) (interface{}, error) {
+	switch fieldType {
+	case "string":
+		return value, nil
+	case "int":
+		return strconv.Atoi(value)
+	case "int64":
+		return strconv.ParseInt(value, 10, 64)
+	case "float64":
+		return strconv.ParseFloat(value, 64)
+	case "bool":
+		return strconv.ParseBool(value)
+	case "time":
+		return time.Parse(time.RFC3339, value)
 	default:
-		return v, nil
+		return value, nil
 	}
 }
 
@@ -448,8 +373,13 @@ func ConvertToValue(value interface{}) (interface{}, error) {
 func SanitizeFieldName(field string) string {
 	// Remove any potentially dangerous characters
 	field = strings.ReplaceAll(field, ";", "")
+	field = strings.ReplaceAll(field, "'", "")
+	field = strings.ReplaceAll(field, "\"", "")
+	field = strings.ReplaceAll(field, "`", "")
 	field = strings.ReplaceAll(field, "--", "")
 	field = strings.ReplaceAll(field, "/*", "")
 	field = strings.ReplaceAll(field, "*/", "")
+	field = strings.ReplaceAll(field, "xp_", "")
+	
 	return field
 }

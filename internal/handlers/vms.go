@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"golang-service/internal/cache"
 	"golang-service/internal/config"
 	"golang-service/internal/models"
@@ -174,19 +175,40 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 			return
 		}
 
-			// Convert AWS VMs to unified VM format
+		// Convert AWS VMs to unified VM format
 		for _, awsVM := range awsVMs {
+			// Extract name from tags or use instance_id as fallback
+			name := awsVM.InstanceID
+			if awsVM.Tags != nil {
+				// Try to extract Name tag from JSON
+				var tags map[string]interface{}
+				if err := json.Unmarshal(awsVM.Tags, &tags); err == nil {
+					if nameTag, ok := tags["Name"].(string); ok && nameTag != "" {
+						name = nameTag
+					}
+				}
+			}
+
+			// Extract status from state JSON
+			status := "unknown"
+			if awsVM.State != nil {
+				var state map[string]interface{}
+				if err := json.Unmarshal(awsVM.State, &state); err == nil {
+					if stateName, ok := state["name"].(string); ok {
+						status = stateName
+					}
+				}
+			}
+
 			vm := models.VM{
 				ID:                   awsVM.ARN,
-				Name:                 awsVM.Name,
+				Name:                 name,
 				CloudType:            "aws",
-				Status:               awsVM.Status,
-				CreatedAt:            awsVM.CreatedAt,
-				UpdatedAt:            awsVM.UpdatedAt,
+				Status:               status,
 				CloudAccountID:       awsVM.AccountID,
 				Location:             awsVM.Region,
-				InstanceType:         awsVM.InstanceTypeAlt,
-				CloudSpecificDetails: nil, // Could store additional AWS-specific data here
+				InstanceType:         awsVM.InstanceType,
+				CloudSpecificDetails: awsVM.Tags, // Store tags as cloud-specific details
 			}
 			
 			// Resolve environment for this VM if environment service is available
@@ -222,17 +244,26 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 
 		// Convert Azure VMs to unified VM format
 		for _, azureVM := range azureVMs {
+			// Extract status from properties JSON
+			status := "unknown"
+			if azureVM.Properties != nil {
+				var properties map[string]interface{}
+				if err := json.Unmarshal(azureVM.Properties, &properties); err == nil {
+					if provisioningState, ok := properties["provisioningState"].(string); ok {
+						status = provisioningState
+					}
+				}
+			}
+
 			vm := models.VM{
 				ID:                   azureVM.ID,
 				Name:                 azureVM.Name,
 				CloudType:            "azure",
-				Status:               azureVM.Status,
-				CreatedAt:            azureVM.CreatedAt,
-				UpdatedAt:            azureVM.UpdatedAt,
+				Status:               status,
 				CloudAccountID:       azureVM.SubscriptionID,
 				Location:             azureVM.Location,
-				InstanceType:         azureVM.InstanceTypeAlt,
-				CloudSpecificDetails: nil, // Could store additional Azure-specific data here
+				InstanceType:         "", // Will extract from properties if needed
+				CloudSpecificDetails: azureVM.Properties, // Store properties as cloud-specific details
 			}
 			
 			// Resolve environment for this VM if environment service is available
@@ -273,12 +304,10 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 				Name:                 gcpVM.Name,
 				CloudType:            "gcp",
 				Status:               gcpVM.Status,
-				CreatedAt:            gcpVM.CreatedAt,
-				UpdatedAt:            gcpVM.UpdatedAt,
 				CloudAccountID:       gcpVM.ProjectID,
 				Location:             gcpVM.Zone, // Using zone as location
 				InstanceType:         gcpVM.MachineType,
-				CloudSpecificDetails: nil, // Could store additional GCP-specific data here
+				CloudSpecificDetails: gcpVM.Labels, // Store labels as cloud-specific details
 			}
 			
 			// Resolve environment for this VM if environment service is available
@@ -308,11 +337,7 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 		return nil, fmt.Errorf("errors fetching VMs: %v", errors)
 	}
 
-	log.Printf("Fetched %d VMs from database (AWS: %d, Azure: %d, GCP: %d)", 
-		len(allVMs), 
-		len(allVMs)/3, // Rough estimate
-		len(allVMs)/3, 
-		len(allVMs)/3)
+	log.Printf("Fetched %d VMs from database", len(allVMs))
 
 	return allVMs, nil
 }
