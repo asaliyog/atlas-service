@@ -4,27 +4,54 @@ info:
   description: |
     A comprehensive API for managing virtual machines across multiple cloud providers (AWS, Azure, GCP).
     
-    ## Filtering
-    The API supports standard query parameter filtering:
-    - `field=value` (equals)
-    - `field_ne=value` (not equals)
-    - `field_gt=value` (greater than)
-    - `field_gte=value` (greater than or equal)
-    - `field_lt=value` (less than)
-    - `field_lte=value` (less than or equal)
-    - `field_contains=value` (contains substring)
-    - `field_starts_with=value` (starts with)
-    - `field_ends_with=value` (ends with)
-    - `field_in=value1,value2` (in list)
-    - `field_not_in=value1,value2` (not in list)
-    - `field_is_null` (field is null)
-    - `field_is_not_null` (field is not null)
+    ## Configurable Filtering System
     
-    ## Examples
-    - `/api/v1/vms?cloudType=aws`
-    - `/api/v1/vms?status=running&name_contains=web`
-    - `/api/v1/vms?instanceType_in=t2.micro,t2.small`
-    - `/api/v1/vms?createdAt_gte=2024-01-01`
+    The API uses a configurable filtering system with the format: `field_operator=value`
+    
+    ### Supported Field Types and Operators
+    
+    #### String Fields (name, cloudType, status, location, instanceType, cloudAccountId)
+    - `eq` - Equals (case-insensitive)
+    - `ne` - Not equals (case-insensitive)
+    - `contains` - Contains substring (case-insensitive)
+    - `starts_with` - Starts with substring (case-insensitive)
+    - `ends_with` - Ends with substring (case-insensitive)
+    - `like` - Pattern matching with % wildcard
+    - `ilike` - Case-insensitive pattern matching
+    - `in` - Value is in comma-separated list
+    - `not_in` - Value is not in comma-separated list
+    - `is_null` - Field is null/empty
+    - `is_not_null` - Field is not null/empty
+    
+    #### Date Fields (createdAt, updatedAt)
+    - `eq` - Equals
+    - `ne` - Not equals
+    - `gt` - Greater than
+    - `gte` - Greater than or equal
+    - `lt` - Less than
+    - `lte` - Less than or equal
+    - `between` - Value is between two values (comma-separated)
+    - `is_null` - Field is null/empty
+    - `is_not_null` - Field is not null/empty
+    
+    ### Filtering Examples
+    - `status_eq=running` - Only running VMs
+    - `name_contains=server` - VMs with "server" in the name
+    - `cloudType_in=aws,azure` - VMs from AWS or Azure
+    - `createdAt_gte=2024-01-01` - VMs created after Jan 1, 2024
+    - `name_starts_with=web` - VMs with names starting with "web"
+    - `status_is_not_null` - VMs with non-null status
+    - `createdAt_between=2024-01-01,2024-12-31` - VMs created in 2024
+    
+    ### Multiple Filters
+    Multiple filters use AND logic:
+    - `status_eq=running&cloudType_eq=aws&name_contains=web`
+    
+    ### Error Handling
+    Invalid filters return 400 Bad Request with descriptive error messages:
+    - Invalid field: "field 'invalidField' is not allowed for filtering"
+    - Invalid operator: "operator 'gte' is not allowed for field 'status' of type 'string'"
+    - Invalid value: "value 'invalid-date' is not a valid date for field 'createdAt'"
   version: 1.0.0
   contact:
     name: API Support
@@ -62,13 +89,15 @@ paths:
       description: |
         Fetches a paginated list of virtual machines across AWS EC2, GCP Compute, and Azure VMs.
         
-        ## Filtering Examples
-        - `cloudType=aws` - Only AWS VMs
-        - `status=running` - Only running VMs
-        - `name_contains=web` - VMs with "web" in the name
+        ## Filtering Examples (New Configurable System)
+        - `status_eq=running` - Only running VMs
+        - `cloudType_eq=aws` - Only AWS VMs
+        - `name_contains=server` - VMs with "server" in the name
         - `instanceType_in=t2.micro,t2.small` - VMs with specific instance types
         - `createdAt_gte=2024-01-01` - VMs created after Jan 1, 2024
-        - `cloudType=aws&status=running` - Running AWS VMs only
+        - `name_starts_with=web` - VMs with names starting with "web"
+        - `status_eq=running&cloudType_eq=aws` - Running AWS VMs only
+        - `createdAt_between=2024-01-01,2024-12-31` - VMs created in 2024
         
         ## Sorting Examples
         - `sortBy=name&sortOrder=asc` - Sort by name ascending
@@ -116,10 +145,83 @@ paths:
             type: string
             enum: [asc, desc]
             default: asc
-        # Filter parameters for unified fields
-        - name: cloudType
+        # Configurable Filter Parameters
+        # Format: field_operator=value
+        # Examples: status_eq=running, name_contains=server, createdAt_gte=2024-01-01
+        
+        # String field filters (name, cloudType, status, location, instanceType, cloudAccountId)
+        - name: name_eq
           in: query
-          description: Filter by cloud provider (aws, azure, gcp)
+          description: Filter by VM name (equals, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: name_ne
+          in: query
+          description: Filter by VM name (not equals, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: name_contains
+          in: query
+          description: Filter by VM name (contains substring, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: name_starts_with
+          in: query
+          description: Filter by VM name (starts with, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: name_ends_with
+          in: query
+          description: Filter by VM name (ends with, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: name_like
+          in: query
+          description: Filter by VM name (pattern matching with % wildcard)
+          required: false
+          schema:
+            type: string
+        - name: name_ilike
+          in: query
+          description: Filter by VM name (case-insensitive pattern matching)
+          required: false
+          schema:
+            type: string
+        - name: name_in
+          in: query
+          description: Filter by VM name (in comma-separated list)
+          required: false
+          schema:
+            type: string
+            example: "server1,server2,web-server"
+        - name: name_not_in
+          in: query
+          description: Filter by VM name (not in comma-separated list)
+          required: false
+          schema:
+            type: string
+            example: "server1,server2"
+        - name: name_is_null
+          in: query
+          description: Filter for VMs with null/empty name
+          required: false
+          schema:
+            type: boolean
+        - name: name_is_not_null
+          in: query
+          description: Filter for VMs with non-null name
+          required: false
+          schema:
+            type: boolean
+            
+        - name: cloudType_eq
+          in: query
+          description: Filter by cloud provider (equals)
           required: false
           schema:
             type: string
@@ -138,15 +240,29 @@ paths:
           schema:
             type: string
             example: "aws,azure"
-        - name: status
+        - name: cloudType_not_in
           in: query
-          description: Filter by VM status
+          description: Filter by cloud providers not in list (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "gcp"
+            
+        - name: status_eq
+          in: query
+          description: Filter by VM status (equals, case-insensitive)
           required: false
           schema:
             type: string
         - name: status_ne
           in: query
-          description: Filter by VM status (not equals)
+          description: Filter by VM status (not equals, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: status_contains
+          in: query
+          description: Filter by VM status (contains substring, case-insensitive)
           required: false
           schema:
             type: string
@@ -157,33 +273,41 @@ paths:
           schema:
             type: string
             example: "running,stopped"
-        - name: name
+        - name: status_not_in
           in: query
-          description: Filter by VM name (exact match)
+          description: Filter by statuses not in list (comma-separated)
           required: false
           schema:
             type: string
-        - name: name_contains
+            example: "terminated"
+        - name: status_is_null
           in: query
-          description: Filter by VM name (contains substring)
+          description: Filter for VMs with null/empty status
+          required: false
+          schema:
+            type: boolean
+        - name: status_is_not_null
+          in: query
+          description: Filter for VMs with non-null status
+          required: false
+          schema:
+            type: boolean
+            
+        - name: location_eq
+          in: query
+          description: Filter by location/region (equals, case-insensitive)
           required: false
           schema:
             type: string
-        - name: name_starts_with
+        - name: location_ne
           in: query
-          description: Filter by VM name (starts with)
+          description: Filter by location/region (not equals, case-insensitive)
           required: false
           schema:
             type: string
-        - name: name_ends_with
+        - name: location_contains
           in: query
-          description: Filter by VM name (ends with)
-          required: false
-          schema:
-            type: string
-        - name: location
-          in: query
-          description: Filter by location/region
+          description: Filter by location/region (contains substring, case-insensitive)
           required: false
           schema:
             type: string
@@ -194,9 +318,29 @@ paths:
           schema:
             type: string
             example: "us-east-1,us-west-2"
-        - name: instanceType
+        - name: location_not_in
           in: query
-          description: Filter by instance type (exact match)
+          description: Filter by locations not in list (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "eu-west-1"
+            
+        - name: instanceType_eq
+          in: query
+          description: Filter by instance type (equals, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: instanceType_ne
+          in: query
+          description: Filter by instance type (not equals, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: instanceType_contains
+          in: query
+          description: Filter by instance type (contains substring, case-insensitive)
           required: false
           schema:
             type: string
@@ -207,12 +351,72 @@ paths:
           schema:
             type: string
             example: "t2.micro,t2.small"
-        - name: cloudAccountId
+        - name: instanceType_not_in
           in: query
-          description: Filter by cloud account ID
+          description: Filter by instance types not in list (comma-separated)
           required: false
           schema:
             type: string
+            example: "t3.micro"
+            
+        - name: cloudAccountId_eq
+          in: query
+          description: Filter by cloud account ID (equals, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: cloudAccountId_ne
+          in: query
+          description: Filter by cloud account ID (not equals, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: cloudAccountId_contains
+          in: query
+          description: Filter by cloud account ID (contains substring, case-insensitive)
+          required: false
+          schema:
+            type: string
+        - name: cloudAccountId_in
+          in: query
+          description: Filter by multiple cloud account IDs (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "123456789012,987654321098"
+        - name: cloudAccountId_not_in
+          in: query
+          description: Filter by cloud account IDs not in list (comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "111111111111"
+            
+        # Date field filters (createdAt, updatedAt)
+        - name: createdAt_eq
+          in: query
+          description: Filter by creation date (equals)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-01T00:00:00Z"
+        - name: createdAt_ne
+          in: query
+          description: Filter by creation date (not equals)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-01T00:00:00Z"
+        - name: createdAt_gt
+          in: query
+          description: Filter by creation date (greater than)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-01T00:00:00Z"
         - name: createdAt_gte
           in: query
           description: Filter by creation date (greater than or equal)
@@ -221,6 +425,14 @@ paths:
             type: string
             format: date-time
             example: "2024-01-01T00:00:00Z"
+        - name: createdAt_lt
+          in: query
+          description: Filter by creation date (less than)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2024-12-31T23:59:59Z"
         - name: createdAt_lte
           in: query
           description: Filter by creation date (less than or equal)
@@ -229,6 +441,25 @@ paths:
             type: string
             format: date-time
             example: "2024-12-31T23:59:59Z"
+        - name: createdAt_between
+          in: query
+          description: Filter by creation date (between two values, comma-separated)
+          required: false
+          schema:
+            type: string
+            example: "2024-01-01T00:00:00Z,2024-12-31T23:59:59Z"
+        - name: createdAt_is_null
+          in: query
+          description: Filter for VMs with null creation date
+          required: false
+          schema:
+            type: boolean
+        - name: createdAt_is_not_null
+          in: query
+          description: Filter for VMs with non-null creation date
+          required: false
+          schema:
+            type: boolean
       responses:
         '200':
           description: Successful response with a list of VMs
@@ -256,7 +487,7 @@ paths:
                       totalPages: 2
                 aws_vms:
                   summary: AWS VMs only
-                  description: Example with cloudType=aws filter
+                  description: Example with cloudType_eq=aws filter
                   value:
                     data:
                       - id: "i-1234567890abcdef0"
@@ -271,6 +502,32 @@ paths:
                       page: 1
                       pageSize: 20
                       totalItems: 10
+                      totalPages: 1
+                filtered_vms:
+                  summary: Filtered VMs
+                  description: Example with multiple filters (status_eq=running&name_contains=server)
+                  value:
+                    data:
+                      - id: "i-1234567890abcdef0"
+                        name: "web-server-01"
+                        cloudType: "aws"
+                        status: "running"
+                        createdAt: "2025-07-07T16:54:43Z"
+                        cloudAccountId: "123456789012"
+                        location: "us-east-1a"
+                        instanceType: "t2.micro"
+                      - id: "i-0987654321fedcba0"
+                        name: "db-server-02"
+                        cloudType: "azure"
+                        status: "running"
+                        createdAt: "2025-07-07T15:30:00Z"
+                        cloudAccountId: "987654321098"
+                        location: "eastus"
+                        instanceType: "Standard_D2s_v3"
+                    pagination:
+                      page: 1
+                      pageSize: 20
+                      totalItems: 2
                       totalPages: 1
         '400':
           description: Invalid request parameters
