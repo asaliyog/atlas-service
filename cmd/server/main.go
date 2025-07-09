@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
+	"golang-service/internal/cache"
 	"golang-service/internal/config"
 	"golang-service/internal/database"
 	"golang-service/internal/handlers"
@@ -38,6 +40,19 @@ func main() {
 		log.Fatal("Failed to initialize database:", err)
 	}
 
+	// Initialize Redis cache
+	redisCache := cache.NewRedisCache("localhost:6379", "", 0)
+	
+	// Test Redis connection
+	ctx := context.Background()
+	if err := redisCache.Ping(ctx); err != nil {
+		log.Printf("Warning: Redis connection failed: %v", err)
+		log.Println("Continuing without Redis cache...")
+		redisCache = nil
+	} else {
+		log.Println("Redis cache initialized successfully")
+	}
+
 	// Setup Gin router
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -57,7 +72,7 @@ func main() {
 	{
 		// Initialize handlers
 		usersHandler := handlers.NewUsersHandler(db)
-		vmsHandler := handlers.NewVMsHandler(db)
+		vmsHandler := handlers.NewVMsHandler(db, redisCache)
 
 		// User management endpoints
 		api.GET("/users", usersHandler.GetUsers)
