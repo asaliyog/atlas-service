@@ -210,6 +210,16 @@ type VM struct {
 	Location             string                 `json:"location"`
 	InstanceType         string                 `json:"instanceType"`
 	CloudSpecificDetails json.RawMessage        `json:"cloudSpecificDetails"`
+	Environment          *EnvironmentInfo       `json:"environment,omitempty"`
+	Env                  string                 `json:"env,omitempty"`
+}
+
+// EnvironmentInfo represents resolved environment information
+type EnvironmentInfo struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 // VMListResponse represents the response for VM list endpoint

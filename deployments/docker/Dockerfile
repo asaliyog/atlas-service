@@ -29,6 +29,9 @@ WORKDIR /root/
 # Copy the binary from builder stage
 COPY --from=builder /app/main .
 
+# Copy config directory
+COPY --from=builder /app/config ./config
+
 # Create non-root user
 RUN addgroup -g 1001 -S appuser && \
     adduser -S -D -H -u 1001 -h /root -s /sbin/nologin -G appuser -g appuser appuser

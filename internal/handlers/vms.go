@@ -20,13 +20,15 @@ import (
 
 // VMsHandler handles VM-related HTTP requests
 type VMsHandler struct {
-	db    *gorm.DB
-	cache *cache.RedisCache
+	db         *gorm.DB
+	cache      *cache.RedisCache
+	envService *config.EnvironmentService
+	config     *config.Config
 }
 
 // NewVMsHandler creates a new VMs handler
-func NewVMsHandler(db *gorm.DB, cache *cache.RedisCache) *VMsHandler {
-	return &VMsHandler{db: db, cache: cache}
+func NewVMsHandler(db *gorm.DB, cache *cache.RedisCache, envService *config.EnvironmentService, config *config.Config) *VMsHandler {
+	return &VMsHandler{db: db, cache: cache, envService: envService, config: config}
 }
 
 // GetVMs handles GET /api/v1/vms
@@ -100,7 +102,7 @@ func (h *VMsHandler) GetVMs(c *gin.Context) {
 		log.Println("Cache hit - using cached VMs")
 	}
 
-	// Apply filters using the new configurable system
+	// Apply filters using the configurable system (including environment filters)
 	filteredVMs := utils.ApplyFilters(cachedVMs, filters)
 
 	// Apply sorting
@@ -172,7 +174,7 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 			return
 		}
 
-		// Convert AWS VMs to unified VM format
+			// Convert AWS VMs to unified VM format
 		for _, awsVM := range awsVMs {
 			vm := models.VM{
 				ID:                   awsVM.ARN,
@@ -186,6 +188,20 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 				InstanceType:         awsVM.InstanceTypeAlt,
 				CloudSpecificDetails: nil, // Could store additional AWS-specific data here
 			}
+			
+			// Resolve environment for this VM if environment service is available
+			if h.envService != nil {
+				if environment, err := h.envService.ResolveEnvironmentForVM(vm); err == nil {
+					vm.Environment = &models.EnvironmentInfo{
+						ID:          environment.ID,
+						Name:        environment.Name,
+						Description: environment.Description,
+						Tags:        environment.Tags,
+					}
+					vm.Env = environment.ID
+				}
+			}
+			
 			mu.Lock()
 			allVMs = append(allVMs, vm)
 			mu.Unlock()
@@ -218,6 +234,20 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 				InstanceType:         azureVM.InstanceTypeAlt,
 				CloudSpecificDetails: nil, // Could store additional Azure-specific data here
 			}
+			
+			// Resolve environment for this VM if environment service is available
+			if h.envService != nil {
+				if environment, err := h.envService.ResolveEnvironmentForVM(vm); err == nil {
+					vm.Environment = &models.EnvironmentInfo{
+						ID:          environment.ID,
+						Name:        environment.Name,
+						Description: environment.Description,
+						Tags:        environment.Tags,
+					}
+					vm.Env = environment.ID
+				}
+			}
+			
 			mu.Lock()
 			allVMs = append(allVMs, vm)
 			mu.Unlock()
@@ -250,6 +280,20 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 				InstanceType:         gcpVM.MachineType,
 				CloudSpecificDetails: nil, // Could store additional GCP-specific data here
 			}
+			
+			// Resolve environment for this VM if environment service is available
+			if h.envService != nil {
+				if environment, err := h.envService.ResolveEnvironmentForVM(vm); err == nil {
+					vm.Environment = &models.EnvironmentInfo{
+						ID:          environment.ID,
+						Name:        environment.Name,
+						Description: environment.Description,
+						Tags:        environment.Tags,
+					}
+					vm.Env = environment.ID
+				}
+			}
+			
 			mu.Lock()
 			allVMs = append(allVMs, vm)
 			mu.Unlock()
@@ -272,3 +316,4 @@ func (h *VMsHandler) fetchVMsFromDatabase() ([]models.VM, error) {
 
 	return allVMs, nil
 }
+

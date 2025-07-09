@@ -87,6 +87,22 @@ func VMsFilterConfig() FilterConfig {
 				Type:      FieldTypeString,
 				Operators: []FilterOperator{OperatorEquals, OperatorNotEquals, OperatorContains, OperatorStartsWith, OperatorEndsWith, OperatorLike, OperatorILike, OperatorIn, OperatorNotIn, OperatorIsNull, OperatorIsNotNull},
 			},
+			"env": {
+				Type:      FieldTypeString,
+				Operators: []FilterOperator{OperatorEquals, OperatorNotEquals, OperatorIn, OperatorNotIn, OperatorIsNull, OperatorIsNotNull},
+			},
+			"environment": {
+				Type:      FieldTypeString,
+				Operators: []FilterOperator{OperatorEquals, OperatorNotEquals, OperatorIn, OperatorNotIn, OperatorIsNull, OperatorIsNotNull},
+			},
+			"environment.id": {
+				Type:      FieldTypeString,
+				Operators: []FilterOperator{OperatorEquals, OperatorNotEquals, OperatorIn, OperatorNotIn, OperatorIsNull, OperatorIsNotNull},
+			},
+			"environment.name": {
+				Type:      FieldTypeString,
+				Operators: []FilterOperator{OperatorEquals, OperatorNotEquals, OperatorContains, OperatorStartsWith, OperatorEndsWith, OperatorLike, OperatorILike, OperatorIn, OperatorNotIn, OperatorIsNull, OperatorIsNotNull},
+			},
 			"createdAt": {
 				Type:      FieldTypeDate,
 				Operators: []FilterOperator{OperatorEquals, OperatorNotEquals, OperatorGreaterThan, OperatorGreaterEqual, OperatorLessThan, OperatorLessEqual, OperatorBetween, OperatorIsNull, OperatorIsNotNull},
@@ -251,7 +267,7 @@ func (fc *FilterConfig) ParseQueryParams(queryParams map[string][]string) ([]Fil
 
 	for key, values := range queryParams {
 		// Skip non-filter parameters
-		if key == "page" || key == "pageSize" || key == "sortBy" || key == "sortOrder" {
+		if key == "page" || key == "pageSize" || key == "sortBy" || key == "sortOrder" || key == "env" {
 			continue
 		}
 

@@ -53,6 +53,16 @@ func main() {
 		log.Println("Redis cache initialized successfully")
 	}
 
+	// Initialize environment service
+	envService := config.NewEnvironmentService("config/environments.yaml")
+	if err := envService.LoadConfig(); err != nil {
+		log.Printf("Warning: Failed to load environment configuration: %v", err)
+		log.Println("Continuing without environment configuration...")
+		envService = nil
+	} else {
+		log.Println("Environment configuration loaded successfully")
+	}
+
 	// Setup Gin router
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -72,13 +82,20 @@ func main() {
 	{
 		// Initialize handlers
 		usersHandler := handlers.NewUsersHandler(db)
-		vmsHandler := handlers.NewVMsHandler(db, redisCache)
+		vmsHandler := handlers.NewVMsHandler(db, redisCache, envService, cfg)
+		envHandler := handlers.NewEnvironmentHandler(envService)
 
 		// User management endpoints
 		api.GET("/users", usersHandler.GetUsers)
 
 		// VM management endpoints
 		api.GET("/vms", vmsHandler.GetVMs)
+
+		// Environment management endpoints
+		api.GET("/environments", envHandler.ListEnvironments)
+		api.GET("/environments/:id", envHandler.GetEnvironment)
+		api.POST("/environments/reload", envHandler.ReloadConfig)
+		api.GET("/environments/config/info", envHandler.GetConfigInfo)
 	}
 
 	// Swagger documentation

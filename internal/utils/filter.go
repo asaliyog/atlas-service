@@ -95,6 +95,11 @@ func applyFilter(vm models.VM, filter config.FilterParam) bool {
 
 // GetFieldValue gets the value of a field from a VM using reflection
 func GetFieldValue(vm models.VM, fieldName string) interface{} {
+	// Handle nested fields (e.g., "environment.id")
+	if strings.Contains(fieldName, ".") {
+		return getNestedFieldValue(vm, fieldName)
+	}
+
 	v := reflect.ValueOf(vm)
 	t := v.Type()
 
@@ -114,6 +119,54 @@ func GetFieldValue(vm models.VM, fieldName string) interface{} {
 		// Check field name
 		if strings.EqualFold(fieldType.Name, fieldName) {
 			return fieldValue.Interface()
+		}
+	}
+
+	return nil
+}
+
+// getNestedFieldValue gets the value of a nested field (e.g., "environment.id")
+func getNestedFieldValue(vm models.VM, fieldName string) interface{} {
+	parts := strings.Split(fieldName, ".")
+	if len(parts) != 2 {
+		return nil
+	}
+
+	// Get the parent field value
+	parentValue := GetFieldValue(vm, parts[0])
+	if parentValue == nil {
+		return nil
+	}
+
+	// Handle pointer types
+	parentReflect := reflect.ValueOf(parentValue)
+	if parentReflect.Kind() == reflect.Ptr {
+		if parentReflect.IsNil() {
+			return nil
+		}
+		parentReflect = parentReflect.Elem()
+	}
+
+	// Get the nested field value
+	if parentReflect.Kind() == reflect.Struct {
+		parentType := parentReflect.Type()
+		for i := 0; i < parentReflect.NumField(); i++ {
+			fieldType := parentType.Field(i)
+			fieldValue := parentReflect.Field(i)
+
+			// Check JSON tag first, then field name
+			jsonTag := fieldType.Tag.Get("json")
+			if jsonTag != "" {
+				jsonField := strings.Split(jsonTag, ",")[0]
+				if jsonField == parts[1] {
+					return fieldValue.Interface()
+				}
+			}
+
+			// Check field name
+			if strings.EqualFold(fieldType.Name, parts[1]) {
+				return fieldValue.Interface()
+			}
 		}
 	}
 

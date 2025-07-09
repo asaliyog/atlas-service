@@ -106,6 +106,9 @@ paths:
         ## Pagination Examples
         - `page=1&pageSize=20` - First page with 20 items
         - `page=2&pageSize=10` - Second page with 10 items
+        
+        ## Environment Resolution
+        When enabled via configuration, each VM response includes an `environment` field with resolved environment information based on account, region, and VPC criteria matching.
       tags:
         - vms
       security:
@@ -460,6 +463,15 @@ paths:
           required: false
           schema:
             type: boolean
+            
+        # Environment filtering
+        - name: env
+          in: query
+          description: Filter VMs by environment ID (e.g., prod0, staging, dev)
+          required: false
+          schema:
+            type: string
+            example: "prod0"
       responses:
         '200':
           description: Successful response with a list of VMs
@@ -541,6 +553,285 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+                
+  /api/v1/environments:
+    get:
+      summary: Retrieve a list of environments
+      description: |
+        Fetches a paginated list of configured environments with their criteria and metadata.
+        
+        ## Filtering Examples
+        - `tag=production` - Only production environments
+        - `account=123456789012` - Environments in specific account
+        - `region=us-east-2` - Environments in specific region
+        - `name=prod` - Environments with "prod" in the name
+        
+        ## Sorting Examples
+        - `sortBy=name&sortOrder=asc` - Sort by name ascending
+        - `sortBy=id&sortOrder=desc` - Sort by ID descending
+        
+        ## Pagination Examples
+        - `page=1&pageSize=10` - First page with 10 items
+        - `page=2&pageSize=5` - Second page with 5 items
+      tags:
+        - environments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of environments per page (max 1000)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 20
+        - name: sortBy
+          in: query
+          description: Field to sort by (id, name, description)
+          required: false
+          schema:
+            type: string
+            default: id
+        - name: sortOrder
+          in: query
+          description: Sort order (asc or desc)
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: tag
+          in: query
+          description: Filter by tag (can be specified multiple times)
+          required: false
+          schema:
+            type: string
+        - name: account
+          in: query
+          description: Filter by account ID
+          required: false
+          schema:
+            type: string
+        - name: region
+          in: query
+          description: Filter by region
+          required: false
+          schema:
+            type: string
+        - name: vpc
+          in: query
+          description: Filter by VPC ID
+          required: false
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: Filter by name (contains)
+          required: false
+          schema:
+            type: string
+        - name: description
+          in: query
+          description: Filter by description (contains)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response with a list of environments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentListResponse'
+              examples:
+                all_environments:
+                  summary: All environments
+                  value:
+                    data:
+                      - id: "prod0"
+                        name: "Production Primary"
+                        description: "Primary production environment in us-east-2"
+                        criteria:
+                          account: "123456789012"
+                          region: "us-east-2"
+                          vpc: "vpc-12345678"
+                        tags:
+                          - "production"
+                          - "primary"
+                          - "critical"
+                        metadata:
+                          owner: "platform-team"
+                          cost_center: "CC-001"
+                          compliance: "SOC2"
+                        createdAt: "2025-07-07T16:54:43Z"
+                        updatedAt: "2025-07-07T16:54:43Z"
+                    pagination:
+                      page: 1
+                      pageSize: 20
+                      totalItems: 6
+                      totalPages: 1
+                    _links:
+                      self: "http://localhost:8080/api/v1/environments"
+                      vms: "http://localhost:8080/api/v1/vms"
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/environments/{id}:
+    get:
+      summary: Retrieve a specific environment
+      description: Fetches details of a specific environment by ID
+      tags:
+        - environments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Environment ID
+          required: true
+          schema:
+            type: string
+            example: "prod0"
+      responses:
+        '200':
+          description: Successful response with environment details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Environment'
+                  _links:
+                    $ref: '#/components/schemas/HATEOASLinks'
+        '404':
+          description: Environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/environments/reload:
+    post:
+      summary: Reload environment configuration
+      description: Reloads the environment configuration from the YAML file
+      tags:
+        - environments
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Configuration reloaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Configuration reloaded successfully"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-07-07T16:54:43Z"
+        '400':
+          description: Invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/environments/config/info:
+    get:
+      summary: Get configuration information
+      description: Returns information about the loaded environment configuration
+      tags:
+        - environments
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Configuration information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalEnvironments:
+                    type: integer
+                    example: 6
+                  configPath:
+                    type: string
+                    example: "config/environments.yaml"
+                  lastLoaded:
+                    type: string
+                    format: date-time
+                    example: "2025-07-07T16:54:43Z"
+                  accounts:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    example:
+                      "123456789012": 2
+                      "987654321098": 2
+                      "555555555555": 2
+                  regions:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    example:
+                      "us-east-2": 1
+                      "us-west-2": 1
+                      "us-east-1": 1
+                      "us-west-1": 1
+                      "eu-west-1": 2
+                  tags:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    example:
+                      "production": 2
+                      "staging": 1
+                      "development": 1
+                      "testing": 2
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     VMListResponse:
@@ -601,6 +892,9 @@ components:
               aws: '#/components/schemas/AWSDetails'
               gcp: '#/components/schemas/GCPDetails'
               azure: '#/components/schemas/AzureDetails'
+        environment:
+          $ref: '#/components/schemas/EnvironmentInfo'
+          description: Resolved environment information (only included when environment resolution is enabled)
       required: [id, cloudType, status, createdAt, cloudAccountId, location, instanceType]
     AWSDetails:
       type: object
@@ -704,6 +998,98 @@ components:
           description: Total number of pages.
           example: 5
       required: [page, pageSize, totalItems, totalPages]
+    Environment:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the environment
+          example: "prod0"
+        name:
+          type: string
+          description: Display name of the environment
+          example: "Production Primary"
+        description:
+          type: string
+          description: Detailed description of the environment
+          example: "Primary production environment in us-east-2"
+        criteria:
+          $ref: '#/components/schemas/EnvironmentCriteria'
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags associated with the environment
+          example: ["production", "primary", "critical"]
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata for the environment
+          example:
+            owner: "platform-team"
+            cost_center: "CC-001"
+            compliance: "SOC2"
+        createdAt:
+          type: string
+          format: date-time
+          description: When the environment was created
+          example: "2025-07-07T16:54:43Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the environment was last updated
+          example: "2025-07-07T16:54:43Z"
+      required: [id, name, criteria]
+    EnvironmentCriteria:
+      type: object
+      properties:
+        account:
+          type: string
+          description: Cloud account ID
+          example: "123456789012"
+        region:
+          type: string
+          description: Cloud region
+          example: "us-east-2"
+        vpc:
+          type: string
+          description: VPC ID (optional)
+          example: "vpc-12345678"
+      required: [account, region]
+    EnvironmentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Environment'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        _links:
+          $ref: '#/components/schemas/HATEOASLinks'
+      required: [data, pagination, _links]
+    EnvironmentInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Environment ID
+          example: "prod0"
+        name:
+          type: string
+          description: Environment name
+          example: "Production Primary"
+        description:
+          type: string
+          description: Environment description
+          example: "Primary production environment in us-east-2"
+        tags:
+          type: array
+          items:
+            type: string
+          description: Environment tags
+          example: ["production", "primary", "critical"]
+      required: [id, name]
     Error:
       type: object
       properties:

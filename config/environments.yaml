@@ -1,0 +1,157 @@
+environments:
+  # AWS Environments - uses account_id, region, vpc_id
+  - id: "prod0"
+    name: "AWS Production Primary"
+    description: "Primary production environment in us-east-1"
+    criteria:
+      cloud_type: "aws"
+      account: "123456789012"
+      region: "us-east-1"
+      vpc: "vpc-12345678"
+    tags:
+      - "production"
+      - "primary"
+      - "aws"
+    metadata:
+      owner: "platform-team"
+      cost_center: "CC-001"
+      compliance: "SOC2"
+      
+  - id: "prod1"
+    name: "AWS Production Secondary"
+    description: "Secondary production environment in us-west-2"
+    criteria:
+      cloud_type: "aws"
+      account: "123456789012"
+      region: "us-west-2"
+      vpc: "vpc-87654321"
+    tags:
+      - "production"
+      - "secondary"
+      - "aws"
+    metadata:
+      owner: "platform-team"
+      cost_center: "CC-001"
+      compliance: "SOC2"
+      
+  - id: "staging"
+    name: "AWS Staging Environment"
+    description: "Staging environment for testing"
+    criteria:
+      cloud_type: "aws"
+      account: "123456789012"
+      region: "eu-west-1"
+      vpc: "vpc-33333333"
+    tags:
+      - "staging"
+      - "testing"
+      - "aws"
+    metadata:
+      owner: "dev-team"
+      cost_center: "CC-002"
+      
+  - id: "dev"
+    name: "AWS Development Environment"
+    description: "Development environment for developers"
+    criteria:
+      cloud_type: "aws"
+      account: "123456789012"
+      region: "ap-southeast-1"
+      vpc: "vpc-44444444"
+    tags:
+      - "development"
+      - "dev"
+      - "aws"
+    metadata:
+      owner: "dev-team"
+      cost_center: "CC-003"
+      
+  - id: "qa"
+    name: "AWS QA Environment"
+    description: "Quality assurance environment"
+    criteria:
+      cloud_type: "aws"
+      account: "123456789012"
+      region: "sa-east-1"
+      vpc: "vpc-55555555"
+    tags:
+      - "qa"
+      - "testing"
+      - "aws"
+    metadata:
+      owner: "qa-team"
+      cost_center: "CC-004"
+
+  # Azure Environments - uses subscription_id, location
+  - id: "azure-prod"
+    name: "Azure Production"
+    description: "Azure production environment"
+    criteria:
+      cloud_type: "azure"
+      subscription: "subscription-12345678"
+      location: "eastus"
+    tags:
+      - "production"
+      - "azure"
+    metadata:
+      owner: "platform-team"
+      cost_center: "CC-006"
+      compliance: "SOC2"
+
+  - id: "azure-staging"
+    name: "Azure Staging"
+    description: "Azure staging environment"
+    criteria:
+      cloud_type: "azure"
+      subscription: "subscription-12345678"
+      location: "westus"
+    tags:
+      - "staging"
+      - "azure"
+    metadata:
+      owner: "dev-team"
+      cost_center: "CC-007"
+
+  - id: "azure-dev"
+    name: "Azure Development"
+    description: "Azure development environment"
+    criteria:
+      cloud_type: "azure"
+      subscription: "subscription-12345678"
+      location: "eastus2"
+    tags:
+      - "development"
+      - "azure"
+    metadata:
+      owner: "dev-team"
+      cost_center: "CC-008"
+
+  # GCP Environments - uses project_id, zone
+  - id: "gcp-prod"
+    name: "GCP Production"
+    description: "GCP production environment"
+    criteria:
+      cloud_type: "gcp"
+      project: "project-123456"
+      zone: "us-central1"
+    tags:
+      - "production"
+      - "gcp"
+    metadata:
+      owner: "platform-team"
+      cost_center: "CC-009"
+      compliance: "SOC2"
+
+  - id: "gcp-staging"
+    name: "GCP Staging"
+    description: "GCP staging environment"
+    criteria:
+      cloud_type: "gcp"
+      project: "project-123456"
+      zone: "us-west1"
+    tags:
+      - "staging"
+      - "gcp"
+    metadata:
+      owner: "dev-team"
+      cost_center: "CC-010" 
