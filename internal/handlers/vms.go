@@ -3,13 +3,14 @@ package handlers
 import (
 	"context"
 	"golang-service/internal/cache"
+	"golang-service/internal/config"
 	"golang-service/internal/models"
 	"golang-service/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -30,17 +31,42 @@ func NewVMsHandler(db *gorm.DB, cache *cache.RedisCache) *VMsHandler {
 
 // GetVMs handles GET /api/v1/vms
 func (h *VMsHandler) GetVMs(c *gin.Context) {
-	// Parse query parameters using the reusable utility
-	params, err := utils.ParseQueryParams(c)
+	// Get filter configuration for VMs endpoint
+	filterConfig := config.VMsFilterConfig()
+
+	// Parse and validate filters from query parameters
+	filters, err := filterConfig.ParseQueryParams(c.Request.URL.Query())
 	if err != nil {
-		utils.SendErrorResponse(c, http.StatusBadRequest, err.Error())
+		utils.SendErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("Filter validation error: %s", err.Error()))
 		return
 	}
 
-	// Validate query parameters
-	if err := utils.ValidateQueryParams(params); err != nil {
-		utils.SendErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
+	// Parse pagination and sorting parameters
+	page := 1
+	pageSize := 10
+	sortBy := ""
+	sortOrder := "asc"
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if pageSizeStr := c.Query("pageSize"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 1000 {
+			pageSize = ps
+		}
+	}
+
+	if sortByParam := c.Query("sortBy"); sortByParam != "" {
+		sortBy = sortByParam
+	}
+
+	if sortOrderParam := c.Query("sortOrder"); sortOrderParam != "" {
+		if sortOrderParam == "desc" {
+			sortOrder = "desc"
+		}
 	}
 
 	// Try to get VMs from cache first (if Redis is available)
@@ -74,98 +100,21 @@ func (h *VMsHandler) GetVMs(c *gin.Context) {
 		log.Println("Cache hit - using cached VMs")
 	}
 
-	// Apply filters
-	filteredVMs := h.applyFilters(cachedVMs, params.Filters)
+	// Apply filters using the new configurable system
+	filteredVMs := utils.ApplyFilters(cachedVMs, filters)
 
 	// Apply sorting
-	sortedVMs := h.applySorting(filteredVMs, params.SortBy, params.SortOrder)
+	sortedVMs := h.applySorting(filteredVMs, sortBy, sortOrder)
 
 	// Calculate pagination
 	totalItems := len(sortedVMs)
-	paginatedVMs := utils.ApplyPagination(sortedVMs, params.Page, params.PageSize)
+	paginatedVMs := utils.ApplyPagination(sortedVMs, page, pageSize)
 
 	// Send response using the reusable utility
-	utils.SendPaginatedResponse(c, paginatedVMs, params.Page, params.PageSize, totalItems)
+	utils.SendPaginatedResponse(c, paginatedVMs, page, pageSize, totalItems)
 }
 
-// applyFilters applies filters to VMs using the reusable utility
-func (h *VMsHandler) applyFilters(vms []models.VM, filters []utils.QueryFilter) []models.VM {
-	// Separate DB-level filters from in-memory filters
-	var dbFilters []utils.QueryFilter
-	var memoryFilters []utils.QueryFilter
 
-	for _, filter := range filters {
-		// Fields that can be filtered at DB level
-		dbFields := map[string]bool{
-			"name":        true,
-			"instance_id": true,
-			"region":      true,
-			"zone":        true,
-			"instance_type": true,
-			"cpu_cores":   true,
-			"memory_gb":   true,
-			"storage_gb":  true,
-			"private_ip":  true,
-			"public_ip":   true,
-			"created_at":  true,
-			"updated_at":  true,
-		}
-
-		if dbFields[filter.Field] {
-			dbFilters = append(dbFilters, filter)
-		} else {
-			memoryFilters = append(memoryFilters, filter)
-		}
-	}
-
-	// Apply DB-level filters
-	filteredVMs := h.applyDBFilters(vms, dbFilters)
-
-	// Apply in-memory filters using the reusable utility
-	if len(memoryFilters) > 0 {
-		filteredVMs = utils.ApplyInMemoryFilters(filteredVMs, memoryFilters, h.extractVMField)
-	}
-
-	return filteredVMs
-}
-
-// applyDBFilters applies database-level filters
-func (h *VMsHandler) applyDBFilters(vms []models.VM, filters []utils.QueryFilter) []models.VM {
-	if len(filters) == 0 {
-		return vms
-	}
-
-	// For now, we'll apply all filters in memory since we're using a simple approach
-	// In a production environment, you'd want to build dynamic SQL queries
-	return utils.ApplyInMemoryFilters(vms, filters, h.extractVMField)
-}
-
-// extractVMField extracts field value from VM struct for filtering
-func (h *VMsHandler) extractVMField(vm models.VM, field string) interface{} {
-	v := reflect.ValueOf(vm)
-	t := v.Type()
-
-	for i := 0; i < v.NumField(); i++ {
-		fieldType := t.Field(i)
-		fieldValue := v.Field(i)
-
-		// Check JSON tag first, then field name
-		jsonTag := fieldType.Tag.Get("json")
-		if jsonTag != "" {
-			jsonField := strings.Split(jsonTag, ",")[0]
-			if jsonField == field {
-				return fieldValue.Interface()
-			}
-		}
-
-		// Check field name
-		if strings.EqualFold(fieldType.Name, field) {
-			return fieldValue.Interface()
-		}
-	}
-
-	return nil
-}
 
 // applySorting applies sorting to VMs
 func (h *VMsHandler) applySorting(vms []models.VM, sortBy, sortOrder string) []models.VM {
@@ -177,8 +126,8 @@ func (h *VMsHandler) applySorting(vms []models.VM, sortBy, sortOrder string) []m
 	copy(sortedVMs, vms)
 
 	sort.Slice(sortedVMs, func(i, j int) bool {
-		valI := h.extractVMField(sortedVMs[i], sortBy)
-		valJ := h.extractVMField(sortedVMs[j], sortBy)
+		valI := utils.GetFieldValue(sortedVMs[i], sortBy)
+		valJ := utils.GetFieldValue(sortedVMs[j], sortBy)
 
 		// Handle nil values
 		if valI == nil && valJ == nil {
